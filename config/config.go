@@ -9,10 +9,11 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/zachmann/go-oidfed/internal/utils"
 	"github.com/zachmann/go-oidfed/pkg"
 	"github.com/zachmann/go-oidfed/pkg/fedentities"
 	"github.com/zachmann/go-oidfed/pkg/fedentities/storage"
+
+	"github.com/go-oidfed/lighthouse/internal"
 )
 
 // Config holds configuration for the entity
@@ -61,10 +62,10 @@ func (e *extendedTrustMarkSpec) UnmarshalYAML(node *yaml.Node) error {
 	}
 	s1 := structs.New(fc)
 	s2 := structs.New(mm)
-	for _, tag := range utils.FieldTagNames(s1.Fields(), "yaml") {
+	for _, tag := range internal.FieldTagNames(s1.Fields(), "yaml") {
 		delete(extra, tag)
 	}
-	for _, tag := range utils.FieldTagNames(s2.Fields(), "yaml") {
+	for _, tag := range internal.FieldTagNames(s2.Fields(), "yaml") {
 		delete(extra, tag)
 	}
 	if len(extra) == 0 {

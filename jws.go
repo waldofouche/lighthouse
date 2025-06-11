@@ -13,8 +13,9 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 
-	"github.com/zachmann/go-oidfed/examples/ta/config"
 	myjwk "github.com/zachmann/go-oidfed/pkg/jwk"
+
+	"github.com/go-oidfed/lighthouse/config"
 )
 
 func genJWKS() myjwk.JWKS {

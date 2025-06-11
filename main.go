@@ -8,9 +8,10 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 
-	"github.com/zachmann/go-oidfed/examples/ta/config"
 	"github.com/zachmann/go-oidfed/pkg"
 	"github.com/zachmann/go-oidfed/pkg/fedentities"
+
+	"github.com/go-oidfed/lighthouse/config"
 )
 
 func main() {

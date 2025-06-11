@@ -28,11 +28,5 @@ jobs:
       run: go build -v ./...
 
     - name: Test
-      run: |
-        go test -coverprofile=cover.out -v ./...
-        # Install 'deepsource CLI'
-        curl https://deepsource.io/cli | sh
-        ./bin/deepsource report --analyzer test-coverage --key go --value-file ./cover.out
-      env:
-        DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+      run: go test -v ./...
 
