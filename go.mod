@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/fatih/structs v1.1.0
-	github.com/lestrrat-go/jwx/v3 v3.0.4
+	github.com/lestrrat-go/jwx/v3 v3.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/zachmann/go-oidfed v0.3.2-0.20250610155255-f9c76930adf4
 	gopkg.in/yaml.v3 v3.0.1
@@ -36,7 +36,6 @@ require (
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc/v3 v3.0.0 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
