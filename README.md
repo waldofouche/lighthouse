@@ -1,3 +1,5 @@
+![](logo_dm.svg)
+
 # Example TA/IA using go-oidfed library
 This is an example Trust Anchor / Intermediate Authority / Trust Mark Issuer that uses the go-oidfed library from this repository.
 
