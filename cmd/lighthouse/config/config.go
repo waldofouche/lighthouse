@@ -6,14 +6,13 @@ import (
 	"os"
 
 	"github.com/fatih/structs"
+	"github.com/go-oidfed/lib/pkg"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/zachmann/go-oidfed/pkg"
-	"github.com/zachmann/go-oidfed/pkg/fedentities"
-	"github.com/zachmann/go-oidfed/pkg/fedentities/storage"
-
+	"github.com/go-oidfed/lighthouse"
 	"github.com/go-oidfed/lighthouse/internal"
+	"github.com/go-oidfed/lighthouse/storage"
 )
 
 // Config holds configuration for the entity
@@ -38,14 +37,14 @@ type Config struct {
 }
 
 type extendedTrustMarkSpec struct {
-	CheckerConfig     fedentities.EntityCheckerConfig `yaml:"checker"`
+	CheckerConfig     lighthouse.EntityCheckerConfig `yaml:"checker"`
 	pkg.TrustMarkSpec `yaml:",inline"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface
 func (e *extendedTrustMarkSpec) UnmarshalYAML(node *yaml.Node) error {
 	type forChecker struct {
-		CheckerConfig fedentities.EntityCheckerConfig `yaml:"checker"`
+		CheckerConfig lighthouse.EntityCheckerConfig `yaml:"checker"`
 	}
 	mm := e.TrustMarkSpec
 	var fc forChecker
@@ -81,23 +80,23 @@ func (e *extendedTrustMarkSpec) UnmarshalYAML(node *yaml.Node) error {
 
 // Endpoints holds configuration for the different possible endpoints
 type Endpoints struct {
-	FetchEndpoint                      fedentities.EndpointConf `yaml:"fetch"`
-	ListEndpoint                       fedentities.EndpointConf `yaml:"list"`
-	ResolveEndpoint                    fedentities.EndpointConf `yaml:"resolve"`
-	TrustMarkStatusEndpoint            fedentities.EndpointConf `yaml:"trust_mark_status"`
-	TrustMarkedEntitiesListingEndpoint fedentities.EndpointConf `yaml:"trust_mark_list"`
-	TrustMarkEndpoint                  fedentities.EndpointConf `yaml:"trust_mark"`
-	HistoricalKeysEndpoint             fedentities.EndpointConf `yaml:"historical_keys"`
+	FetchEndpoint                      lighthouse.EndpointConf `yaml:"fetch"`
+	ListEndpoint                       lighthouse.EndpointConf `yaml:"list"`
+	ResolveEndpoint                    lighthouse.EndpointConf `yaml:"resolve"`
+	TrustMarkStatusEndpoint            lighthouse.EndpointConf `yaml:"trust_mark_status"`
+	TrustMarkedEntitiesListingEndpoint lighthouse.EndpointConf `yaml:"trust_mark_list"`
+	TrustMarkEndpoint                  lighthouse.EndpointConf `yaml:"trust_mark"`
+	HistoricalKeysEndpoint             lighthouse.EndpointConf `yaml:"historical_keys"`
 
-	EnrollmentEndpoint        extendedEndpointConfig   `yaml:"enroll"`
-	EnrollmentRequestEndpoint fedentities.EndpointConf `yaml:"enroll_request"`
-	TrustMarkRequestEndpoint  fedentities.EndpointConf `yaml:"trust_mark_request"`
-	EntityCollectionEndpoint  fedentities.EndpointConf `yaml:"entity_collection"`
+	EnrollmentEndpoint        extendedEndpointConfig  `yaml:"enroll"`
+	EnrollmentRequestEndpoint lighthouse.EndpointConf `yaml:"enroll_request"`
+	TrustMarkRequestEndpoint  lighthouse.EndpointConf `yaml:"trust_mark_request"`
+	EntityCollectionEndpoint  lighthouse.EndpointConf `yaml:"entity_collection"`
 }
 
 type extendedEndpointConfig struct {
-	fedentities.EndpointConf `yaml:",inline"`
-	CheckerConfig            fedentities.EntityCheckerConfig `yaml:"checker"`
+	lighthouse.EndpointConf `yaml:",inline"`
+	CheckerConfig           lighthouse.EntityCheckerConfig `yaml:"checker"`
 }
 
 var c Config

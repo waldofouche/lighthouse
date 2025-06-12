@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zachmann/go-oidfed/examples/ta/config"
-	"github.com/zachmann/go-oidfed/pkg/fedentities/storage"
+	"github.com/go-oidfed/lighthouse/cmd/lighthouse/config"
+	"github.com/go-oidfed/lighthouse/storage"
 )
 
 var rootCmd = &cobra.Command{

@@ -6,12 +6,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/go-oidfed/lib/pkg"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 
-	"github.com/zachmann/go-oidfed/pkg"
-	"github.com/zachmann/go-oidfed/pkg/fedentities"
-
-	"github.com/go-oidfed/lighthouse/config"
+	"github.com/go-oidfed/lighthouse"
+	"github.com/go-oidfed/lighthouse/cmd/lighthouse/config"
 )
 
 func main() {
@@ -38,7 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	entity, err := fedentities.NewFedEntity(
+	entity, err := lighthouse.NewLightHouse(
 		c.EntityID, c.AuthorityHints,
 		&pkg.Metadata{
 			FederationEntity: &pkg.FederationEntityMetadata{
@@ -46,7 +45,7 @@ func main() {
 				LogoURI:          c.LogoURI,
 			},
 		},
-		signingKey, jwa.ES512(), c.ConfigurationLifetime, fedentities.SubordinateStatementsConfig{
+		signingKey, jwa.ES512(), c.ConfigurationLifetime, lighthouse.SubordinateStatementsConfig{
 			MetadataPolicies:             nil,
 			SubordinateStatementLifetime: 3600,
 			// TODO read all of this from config or a storage backend
@@ -63,16 +62,19 @@ func main() {
 	entity.TrustMarkOwners = c.TrustMarkOwners
 	entity.TrustMarks = c.TrustMarks
 
-	var trustMarkCheckerMap map[string]fedentities.EntityChecker
+	var trustMarkCheckerMap map[string]lighthouse.EntityChecker
 	if len(c.TrustMarkSpecs) > 0 {
 		specs := make([]pkg.TrustMarkSpec, len(c.TrustMarkSpecs))
 		for i, s := range c.TrustMarkSpecs {
 			specs[i] = s.TrustMarkSpec
 			if s.CheckerConfig.Type != "" {
 				if trustMarkCheckerMap == nil {
-					trustMarkCheckerMap = make(map[string]fedentities.EntityChecker)
+					trustMarkCheckerMap = make(map[string]lighthouse.EntityChecker)
 				}
-				trustMarkCheckerMap[s.ID], err = fedentities.EntityCheckerFromEntityCheckerConfig(s.CheckerConfig)
+				trustMarkCheckerMap[s.ID], err = lighthouse.EntityCheckerFromEntityCheckerConfig(
+					s.
+						CheckerConfig,
+				)
 				if err != nil {
 					panic(err)
 				}
@@ -104,9 +106,9 @@ func main() {
 		entity.AddTrustMarkRequestEndpoint(endpoint, trustMarkedEntitiesStorage)
 	}
 	if endpoint := c.Endpoints.EnrollmentEndpoint; endpoint.IsSet() {
-		var checker fedentities.EntityChecker
+		var checker lighthouse.EntityChecker
 		if checkerConfig := endpoint.CheckerConfig; checkerConfig.Type != "" {
-			checker, err = fedentities.EntityCheckerFromEntityCheckerConfig(checkerConfig)
+			checker, err = lighthouse.EntityCheckerFromEntityCheckerConfig(checkerConfig)
 			if err != nil {
 				panic(err)
 			}

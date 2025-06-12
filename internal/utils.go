@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/fatih/structs"
+	"tideland.dev/go/slices"
 )
 
 // FieldTagNames returns a slice of the tag names for a []*structs.Field and the given tag
@@ -21,4 +22,18 @@ func FieldTagNames(fields []*structs.Field, tag string) (names []string) {
 		}
 	}
 	return
+}
+
+// MergeMaps merges two or more maps into on; overwrite determines if values are overwritten if already set or not
+func MergeMaps(overwrite bool, mm ...map[string]any) map[string]any {
+	if !overwrite {
+		return MergeMaps(true, slices.Reverse(mm)...)
+	}
+	all := make(map[string]any)
+	for _, m := range mm {
+		for k, v := range m {
+			all[k] = v
+		}
+	}
+	return all
 }

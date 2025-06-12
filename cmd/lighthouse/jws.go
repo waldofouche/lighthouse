@@ -13,9 +13,9 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 
-	myjwk "github.com/zachmann/go-oidfed/pkg/jwk"
+	myjwk "github.com/go-oidfed/lib/pkg/jwk"
 
-	"github.com/go-oidfed/lighthouse/config"
+	"github.com/go-oidfed/lighthouse/cmd/lighthouse/config"
 )
 
 func genJWKS() myjwk.JWKS {

@@ -1,2 +1,5 @@
 /.idea/
 /docker-data/
+/lhcli
+/lighthouse
+/.cache/
