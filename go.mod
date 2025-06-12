@@ -8,7 +8,7 @@ require (
 	github.com/adam-hanna/arrayOperations v1.0.1
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/fatih/structs v1.1.0
-	github.com/go-oidfed/lib v0.4.1-0.20250612150203-6c3bdf292df7
+	github.com/go-oidfed/lib v0.4.1-0.20250612155810-cb8cd66243f4
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/lestrrat-go/jwx/v3 v3.0.5
 	github.com/pkg/errors v0.9.1

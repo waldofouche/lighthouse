@@ -44,7 +44,7 @@ func (fed *LightHouse) AddTrustMarkRequestEndpoint(
 				)
 			}
 			if !slices.Contains(
-				fed.TrustMarkIssuer.TrustMarkIDs(),
+				fed.TrustMarkIssuer.TrustMarkTypes(),
 				trustMarkType,
 			) {
 				ctx.Status(fiber.StatusNotFound)
