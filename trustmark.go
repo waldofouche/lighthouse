@@ -42,7 +42,7 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 				)
 			}
 			if !slices.Contains(
-				fed.TrustMarkIssuer.TrustMarkIDs(),
+				fed.TrustMarkIssuer.TrustMarkTypes(),
 				trustMarkType,
 			) {
 				ctx.Status(fiber.StatusNotFound)
@@ -107,9 +107,9 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 }
 
 func issueAndSendTrustMark(
-	ctx *fiber.Ctx, fedEntity *LightHouse, trustMarkID, sub string,
+	ctx *fiber.Ctx, fedEntity *LightHouse, trustMarkType, sub string,
 ) error {
-	tm, err := fedEntity.IssueTrustMark(trustMarkID, sub)
+	tm, err := fedEntity.IssueTrustMark(trustMarkType, sub)
 	if err != nil {
 		if err != nil {
 			ctx.Status(fiber.StatusInternalServerError)

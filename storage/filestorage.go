@@ -230,29 +230,29 @@ func (s trustMarkedEntitiesFileStorage) writeUnlocked(infos map[string]map[Statu
 }
 
 // Block implements the TrustMarkedEntitiesStorageBackend
-func (s trustMarkedEntitiesFileStorage) Block(trustMarkID, entityID string) error {
-	return s.write(trustMarkID, entityID, StatusBlocked)
+func (s trustMarkedEntitiesFileStorage) Block(trustMarkType, entityID string) error {
+	return s.write(trustMarkType, entityID, StatusBlocked)
 }
 
 // Approve implements the TrustMarkedEntitiesStorageBackend
-func (s trustMarkedEntitiesFileStorage) Approve(trustMarkID, entityID string) error {
-	return s.write(trustMarkID, entityID, StatusActive)
+func (s trustMarkedEntitiesFileStorage) Approve(trustMarkType, entityID string) error {
+	return s.write(trustMarkType, entityID, StatusActive)
 }
 
 // Request implements the TrustMarkedEntitiesStorageBackend
-func (s trustMarkedEntitiesFileStorage) Request(trustMarkID, entityID string) error {
-	return s.write(trustMarkID, entityID, StatusPending)
+func (s trustMarkedEntitiesFileStorage) Request(trustMarkType, entityID string) error {
+	return s.write(trustMarkType, entityID, StatusPending)
 }
 
 // TrustMarkedStatus implements the TrustMarkedEntitiesStorageBackend
-func (s trustMarkedEntitiesFileStorage) TrustMarkedStatus(trustMarkID, entityID string) (Status, error) {
+func (s trustMarkedEntitiesFileStorage) TrustMarkedStatus(trustMarkType, entityID string) (Status, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	infosMap, err := s.readUnlocked()
 	if err != nil {
 		return -1, err
 	}
-	infos, ok := infosMap[trustMarkID]
+	infos, ok := infosMap[trustMarkType]
 	if !ok {
 		return StatusInactive, nil
 	}
@@ -264,15 +264,15 @@ func (s trustMarkedEntitiesFileStorage) TrustMarkedStatus(trustMarkID, entityID 
 	return StatusInactive, nil
 }
 
-func (s trustMarkedEntitiesFileStorage) Active(trustMarkID string) ([]string, error) {
+func (s trustMarkedEntitiesFileStorage) Active(trustMarkType string) ([]string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	infosMap, err := s.readUnlocked()
 	if err != nil {
 		return nil, err
 	}
-	if trustMarkID != "" {
-		infos, ok := infosMap[trustMarkID]
+	if trustMarkType != "" {
+		infos, ok := infosMap[trustMarkType]
 		if !ok {
 			return nil, nil
 		}
@@ -290,35 +290,35 @@ func (s trustMarkedEntitiesFileStorage) Active(trustMarkID string) ([]string, er
 
 }
 
-func (s trustMarkedEntitiesFileStorage) Blocked(trustMarkID string) ([]string, error) {
+func (s trustMarkedEntitiesFileStorage) Blocked(trustMarkType string) ([]string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	infosMap, err := s.readUnlocked()
 	if err != nil {
 		return nil, err
 	}
-	infos, ok := infosMap[trustMarkID]
+	infos, ok := infosMap[trustMarkType]
 	if !ok {
 		return nil, nil
 	}
 	return infos[StatusBlocked], nil
 }
 
-func (s trustMarkedEntitiesFileStorage) Pending(trustMarkID string) ([]string, error) {
+func (s trustMarkedEntitiesFileStorage) Pending(trustMarkType string) ([]string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	infosMap, err := s.readUnlocked()
 	if err != nil {
 		return nil, err
 	}
-	infos, ok := infosMap[trustMarkID]
+	infos, ok := infosMap[trustMarkType]
 	if !ok {
 		return nil, nil
 	}
 	return infos[StatusPending], nil
 }
 
-func (s trustMarkedEntitiesFileStorage) write(trustMarkID, entityID string, status Status) error {
+func (s trustMarkedEntitiesFileStorage) write(trustMarkType, entityID string, status Status) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	infos, err := s.readUnlocked()
@@ -330,7 +330,7 @@ func (s trustMarkedEntitiesFileStorage) write(trustMarkID, entityID string, stat
 	if infos == nil {
 		infos = make(map[string]map[Status][]string)
 	}
-	tme, ok := infos[trustMarkID]
+	tme, ok := infos[trustMarkType]
 	if !ok {
 		tme = make(map[Status][]string)
 	}
@@ -348,13 +348,13 @@ func (s trustMarkedEntitiesFileStorage) write(trustMarkID, entityID string, stat
 	entities = addToSliceIfNotExists(entityID, entities)
 	tme[status] = entities
 
-	infos[trustMarkID] = tme
+	infos[trustMarkType] = tme
 	return s.writeUnlocked(infos)
 }
 
 // Delete implements the TrustMarkedEntitiesStorageBackend
-func (s trustMarkedEntitiesFileStorage) Delete(trustMarkID, entityID string) error {
-	return s.write(trustMarkID, entityID, -1)
+func (s trustMarkedEntitiesFileStorage) Delete(trustMarkType, entityID string) error {
+	return s.write(trustMarkType, entityID, -1)
 }
 
 // Load implements the TrustMarkedEntitiesStorageBackend
@@ -363,8 +363,8 @@ func (trustMarkedEntitiesFileStorage) Load() error {
 }
 
 // HasTrustMark implements the TrustMarkedEntitiesStorageBackend
-func (s trustMarkedEntitiesFileStorage) HasTrustMark(trustMarkID, entityID string) (bool, error) {
-	tme, err := s.Active(trustMarkID)
+func (s trustMarkedEntitiesFileStorage) HasTrustMark(trustMarkType, entityID string) (bool, error) {
+	tme, err := s.Active(trustMarkType)
 	if err != nil {
 		return false, err
 	}

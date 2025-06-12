@@ -51,7 +51,7 @@ var trustmarkManageRequestsCmd = &cobra.Command{
 	RunE:  manageTrustMarkRequests,
 }
 
-var trustMarkID string
+var trustMarkType string
 var printFlag bool
 
 func init() {
@@ -62,7 +62,7 @@ func init() {
 	trustmarkManageRequestsCmd.Flags().BoolVarP(
 		&printFlag, "print", "p", false, "if set only the requests will be printed, no management is triggered",
 	)
-	trustmarkManageRequestsCmd.Flags().StringVar(&trustMarkID, "id", "", "if set only this trust mark id is handled")
+	trustmarkManageRequestsCmd.Flags().StringVar(&trustMarkType, "id", "", "if set only this trust mark id is handled")
 	tmCmd.Flags().StringVarP(&configFile, "config", "c", "config.yaml", "the config file to use")
 	tmCmd.AddCommand(trustmarkAddCmd)
 	tmCmd.AddCommand(trustmarkRemoveCmd)
@@ -79,10 +79,10 @@ func addTrustMark(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "failed to load trust-marked entities from storage")
 	}
 
-	trustMarkID := args[0]
+	trustMarkType := args[0]
 	entityID := args[1]
 
-	if err := trustMarkedEntitiesStorage.Approve(trustMarkID, entityID); err != nil {
+	if err := trustMarkedEntitiesStorage.Approve(trustMarkType, entityID); err != nil {
 		return errors.Wrap(err, "failed to add trust marked entity to storage")
 	}
 	fmt.Println("trustmark successfully added")
@@ -97,10 +97,10 @@ func removeTrustMark(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "failed to load trust-marked entities from storage")
 	}
 
-	trustMarkID := args[0]
+	trustMarkType := args[0]
 	entityID := args[1]
 
-	if err := trustMarkedEntitiesStorage.Delete(trustMarkID, entityID); err != nil {
+	if err := trustMarkedEntitiesStorage.Delete(trustMarkType, entityID); err != nil {
 		return errors.Wrap(err, "failed to remove trust marked entity from storage")
 	}
 	fmt.Println("trustmark successfully removed")
@@ -115,10 +115,10 @@ func blockTrustMark(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "failed to load trust-marked entities from storage")
 	}
 
-	trustMarkID := args[0]
+	trustMarkType := args[0]
 	entityID := args[1]
 
-	if err := trustMarkedEntitiesStorage.Block(trustMarkID, entityID); err != nil {
+	if err := trustMarkedEntitiesStorage.Block(trustMarkType, entityID); err != nil {
 		return errors.Wrap(err, "failed to block trust marked entity")
 	}
 	fmt.Println("trustmark successfully blocked for entity")
@@ -133,8 +133,8 @@ func manageTrustMarkRequests(cmd *cobra.Command, _ []string) error {
 		return errors.Wrap(err, "failed to load trust-marked entities from storage")
 	}
 
-	if trustMarkID != "" {
-		return manageTrustMarkRequestsForID(trustMarkID)
+	if trustMarkType != "" {
+		return manageTrustMarkRequestsForID(trustMarkType)
 	}
 	for _, c := range config.Get().TrustMarkSpecs {
 		if err := manageTrustMarkRequestsForID(c.TrustMarkType); err != nil {
@@ -167,12 +167,12 @@ func manageTrustMarkRequestsForID(id string) error {
 	return nil
 }
 
-func promptInTrustMarkRequest(trustMarkID, entityID string) error {
+func promptInTrustMarkRequest(trustMarkType, entityID string) error {
 	approved := promptApproval("Do you approve entity '%s'", entityID)
 	if approved {
-		return trustMarkedEntitiesStorage.Approve(trustMarkID, entityID)
+		return trustMarkedEntitiesStorage.Approve(trustMarkType, entityID)
 	}
-	return trustMarkedEntitiesStorage.Block(trustMarkID, entityID)
+	return trustMarkedEntitiesStorage.Block(trustMarkType, entityID)
 }
 
 func promptApproval(f string, args ...interface{}) bool {
