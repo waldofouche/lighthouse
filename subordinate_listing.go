@@ -24,7 +24,7 @@ func (fed *LightHouse) AddSubordinateListingEndpoint(
 		endpoint.Path, func(ctx *fiber.Ctx) error {
 			return handleSubordinateListing(
 				ctx, ctx.Query("entity_type"), ctx.QueryBool("trust_marked"),
-				ctx.Query("trust_mark_id"),
+				ctx.Query("trust_mark_type"),
 				ctx.QueryBool("intermediate"),
 				store.Active(),
 				trustMarkStore,
@@ -39,7 +39,7 @@ func filterEntityType(info storage.SubordinateInfo, value any) bool {
 }
 
 func handleSubordinateListing(
-	ctx *fiber.Ctx, entityType string, trustMarked bool, trustMarkID string,
+	ctx *fiber.Ctx, entityType string, trustMarked bool, trustMarkType string,
 	intermediate bool, q storage.SubordinateStorageQuery, trustMarkedEntitiesStorage storage.
 		TrustMarkedEntitiesStorageBackend,
 ) error {
@@ -52,9 +52,9 @@ func handleSubordinateListing(
 			ctx.Status(fiber.StatusBadRequest)
 			return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'trust_marked' is not supported"))
 		}
-		if trustMarkID != "" {
+		if trustMarkType != "" {
 			ctx.Status(fiber.StatusBadRequest)
-			return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'trust_mark_id' is not supported"))
+			return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'trust_mark_type' is not supported"))
 		}
 	}
 
@@ -74,8 +74,8 @@ func handleSubordinateListing(
 		return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 	}
 
-	if trustMarkID != "" || trustMarked {
-		trustMarkedEntities, err := trustMarkedEntitiesStorage.Active(trustMarkID)
+	if trustMarkType != "" || trustMarked {
+		trustMarkedEntities, err := trustMarkedEntitiesStorage.Active(trustMarkType)
 		if err != nil {
 			ctx.Status(fiber.StatusInternalServerError)
 			return ctx.JSON(oidfed.ErrorServerError(err.Error()))

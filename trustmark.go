@@ -23,7 +23,7 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 	}
 	fed.server.Get(
 		endpoint.Path, func(ctx *fiber.Ctx) error {
-			trustMarkID := ctx.Query("trust_mark_id")
+			trustMarkType := ctx.Query("trust_mark_type")
 			sub := ctx.Query("sub")
 			if sub == "" {
 				ctx.Status(fiber.StatusBadRequest)
@@ -33,32 +33,32 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 					),
 				)
 			}
-			if trustMarkID == "" {
+			if trustMarkType == "" {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(
 					oidfed.ErrorInvalidRequest(
-						"required parameter 'trust_mark_id' not given",
+						"required parameter 'trust_mark_type' not given",
 					),
 				)
 			}
 			if !slices.Contains(
 				fed.TrustMarkIssuer.TrustMarkIDs(),
-				trustMarkID,
+				trustMarkType,
 			) {
 				ctx.Status(fiber.StatusNotFound)
 				return ctx.JSON(
-					oidfed.ErrorNotFound("'trust_mark_id' not known"),
+					oidfed.ErrorNotFound("'trust_mark_type' not known"),
 				)
 			}
 
-			status, err := store.TrustMarkedStatus(trustMarkID, sub)
+			status, err := store.TrustMarkedStatus(trustMarkType, sub)
 			if err != nil {
 				ctx.Status(fiber.StatusInternalServerError)
 				return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 			}
 			switch status {
 			case storage.StatusActive:
-				return issueAndSendTrustMark(ctx, fed, trustMarkID, sub)
+				return issueAndSendTrustMark(ctx, fed, trustMarkType, sub)
 			case storage.StatusBlocked:
 				ctx.Status(fiber.StatusForbidden)
 				return ctx.JSON(oidfed.ErrorInvalidRequest("subject cannot obtain this trust mark"))
@@ -70,7 +70,7 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 				// check if it is entitled to do so
 				var checker EntityChecker
 				if checkers != nil {
-					checker = checkers[trustMarkID]
+					checker = checkers[trustMarkType]
 				}
 				if checker == nil {
 					ctx.Status(fiber.StatusNotFound)
@@ -96,12 +96,12 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 					)
 				}
 				// ok, so we add sub to the list and issue the trust mark
-				if err = store.Approve(trustMarkID, sub); err != nil {
+				if err = store.Approve(trustMarkType, sub); err != nil {
 					ctx.Status(fiber.StatusInternalServerError)
 					return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 				}
 			}
-			return issueAndSendTrustMark(ctx, fed, trustMarkID, sub)
+			return issueAndSendTrustMark(ctx, fed, trustMarkType, sub)
 		},
 	)
 }

@@ -28,7 +28,7 @@ type delegationConfig struct {
 }
 
 type delegationTrustMarkSpec struct {
-	ID                 string            `yaml:"trust_mark_id" json:"trust_mark_id"`
+	TrustMarkType      string            `yaml:"trust_mark_type" json:"trust_mark_type"`
 	DelegationLifetime int64             `yaml:"delegation_lifetime" json:"delegation_lifetime"`
 	Ref                string            `yaml:"ref" json:"ref"`
 	TrustMarkIssuers   []delegatedEntity `yaml:"trust_mark_issuers" json:"trust_mark_issuers"`
@@ -92,7 +92,7 @@ func runDelegation(cmd *cobra.Command, args []string) error {
 	ownedTrustMarks := make([]oidfed.OwnedTrustMark, len(conf.TrustMarks))
 	for i, c := range conf.TrustMarks {
 		ownedTrustMarks[i] = oidfed.OwnedTrustMark{
-			ID:                 c.ID,
+			ID:                 c.TrustMarkType,
 			DelegationLifetime: time.Duration(c.DelegationLifetime) * time.Second,
 			Ref:                c.Ref,
 		}
@@ -105,7 +105,7 @@ func runDelegation(cmd *cobra.Command, args []string) error {
 	)
 	for i, c := range conf.TrustMarks {
 		for j, e := range c.TrustMarkIssuers {
-			delegation, err := tmo.DelegationJWT(c.ID, e.EntityID)
+			delegation, err := tmo.DelegationJWT(c.TrustMarkType, e.EntityID)
 			if err != nil {
 				return errors.Wrap(err, "failed to generate delegation JWT")
 			}

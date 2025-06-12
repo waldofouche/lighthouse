@@ -187,7 +187,7 @@ func (c *MultipleEntityCheckerAnd) UnmarshalYAML(node *yaml.Node) error {
 // valid trust mark. The trust mark can be checked with a specific issuer or
 // through the federation
 type TrustMarkEntityChecker struct {
-	TrustMarkID         string                    `yaml:"trust_mark_id"`
+	TrustMarkType       string                    `yaml:"trust_mark_type"`
 	TrustAnchors        oidfed.TrustAnchors       `yaml:"trust_anchors"`
 	TrustMarkIssuerJWKS jwks.JWKS                 `yaml:"trust_mark_issuer_jwks"`
 	TrustMarkOwnerSpec  oidfed.TrustMarkOwnerSpec `yaml:"trust_mark_owner"`
@@ -201,12 +201,12 @@ func (c TrustMarkEntityChecker) Check(
 	tms := entityConfiguration.TrustMarks
 	noTrustMarkError := &oidfed.Error{
 		Error:            "forbidden",
-		ErrorDescription: fmt.Sprintf("entity does not contain required trust mark '%s'", c.TrustMarkID),
+		ErrorDescription: fmt.Sprintf("entity does not contain required trust mark '%s'", c.TrustMarkType),
 	}
 	if len(tms) == 0 {
 		return false, fiber.StatusForbidden, noTrustMarkError
 	}
-	tm := tms.FindByID(c.TrustMarkID)
+	tm := tms.FindByID(c.TrustMarkType)
 	if tm == nil {
 		return false, fiber.StatusForbidden, noTrustMarkError
 	}
@@ -234,7 +234,7 @@ func (c TrustMarkEntityChecker) Check(
 	return false, fiber.StatusForbidden, &oidfed.Error{
 		Error: "forbidden",
 		ErrorDescription: fmt.Sprintf(
-			"could not verify required trust mark '%s'", c.TrustMarkID,
+			"could not verify required trust mark '%s'", c.TrustMarkType,
 		),
 	}
 }

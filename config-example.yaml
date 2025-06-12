@@ -27,21 +27,21 @@ endpoints:
       config:
         - type: trust_mark
           config:
-            trust_mark_id: https://tm.example.org
+            trust_mark_type: https://tm.example.org
             trust_anchors:
               - entity_id: https://ta.example.org
         - type: trust_mark
           config:
-            trust_mark_id: https://tm.example.com
+            trust_mark_type: https://tm.example.com
             trust_anchors:
               - entity_id: https://example.com
               - entity_id: https://foo.bar.com
 trust_mark_specs:
-  - trust_mark_id: "https://tm.example.org"
+  - trust_mark_type: "https://tm.example.org"
     lifetime: 3600
     ref: "https://tm.example.org/ref"
     logo_uri: "https://tm.example.org/logo"
     extra_claim: "example"
     delegation_jwt:
-  - trust_mark_id: "https://edugain.org"
+  - trust_mark_type: "https://edugain.org"
     lifetime: 86400

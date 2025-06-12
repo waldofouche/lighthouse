@@ -42,11 +42,11 @@ endpoints:
     checker:
         type: trust_mark
         config:
-          trust_mark_id: https://go-ia.federservice.lh/tm/federation-member
+          trust_mark_type: https://go-ia.federservice.lh/tm/federation-member
           trust_anchors:
             - entity_id: https://go-ia.fedservice.lh
 trust_mark_specs:
-  - trust_mark_id: "https://go-ia.federservice.lh/tm/federation-member"
+  - trust_mark_type: "https://go-ia.federservice.lh/tm/federation-member"
     lifetime: 86400
     extra_claim: "example"
     checker:
@@ -140,7 +140,7 @@ information about the trust mark owner.
 
 | Claim                  | Necessity                                                       | Description                                                  |
 |------------------------|-----------------------------------------------------------------|--------------------------------------------------------------|
-| `trust_mark_id`         | REQUIRED                                                        | The trust mark id of the trust mark to check                 |
+| `trust_mark_type`         | REQUIRED                                                        | The trust mark id of the trust mark to check                 |
 | `trust_anchors`          | REQUIRED unless `trust_mark_issuer_jwks` is given               | A list of trust anchors used to verify the trust mark issuer |
 | `trust_mark_issuer_jwks` | REQUIRED if `trust_anchors` is not given                        | The jwks of the trust mark issuer                            |
 | `trust_mark_owner`      | REQUIRED if `trust_anchors` is not given and delegation is used | Information about the trust mark owner                       |
@@ -166,7 +166,7 @@ The `trust_mark_owner` claim has the following attributes:
 checker:
   type: trust_mark
   config:
-    trust_mark_id: https://tm.example.org
+    trust_mark_type: https://tm.example.org
     trust_anchors:
       - entity_id: https://ta.example.org
 ```
@@ -175,7 +175,7 @@ checker:
 checker:
   type: trust_mark
   config:
-    trust_mark_id: https://tm.example.org
+    trust_mark_type: https://tm.example.org
     mark_issuer_jwks: {"keys":[{"alg":"ES512","crv":"P-521","kid":"E6XirVKtuO2_76Ly8Lw1cS_W4FUfw_lx5M_z33aMO-I","kty":"EC","use":"sig","x":"AbZpRmHJVpqqJ2q4bFMPto5jVhReNe0toBHWm0y-AhdpqYIqLA-J3ICr_I42BgmC4pG9lQE4qU8mJjkX1I__PDK8","y":"AFl9aVDzsUJPbyxDe96FuLWJNYNOo68WcljWEXJ0QzsFaTDUtykNe1lf3UoOXQWnvNQ1eD2iyWTef1gRR9A6HOSI"}]}
     trust_mark_owner:
       entity_id: https://ta.example.org
@@ -269,12 +269,12 @@ checker:
       config:
         - type: trust_mark
           config: 
-            trust_mark_id: https://tm.example.com
+            trust_mark_type: https://tm.example.com
             trust_anchors:
               - entity_id: https://ta.example.com
         - type: trust_mark
           config: 
-          trust_mark_id: https://tm.example.org
+            trust_mark_type: https://tm.example.org
             trust_anchors:
               - entity_id: https://ta.example.org
 ```

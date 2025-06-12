@@ -25,7 +25,7 @@ func (fed *LightHouse) AddTrustMarkRequestEndpoint(
 	}
 	fed.server.Get(
 		endpoint.Path, func(ctx *fiber.Ctx) error {
-			trustMarkID := ctx.Query("trust_mark_id")
+			trustMarkType := ctx.Query("trust_mark_type")
 			sub := ctx.Query("sub")
 			if sub == "" {
 				ctx.Status(fiber.StatusBadRequest)
@@ -35,25 +35,25 @@ func (fed *LightHouse) AddTrustMarkRequestEndpoint(
 					),
 				)
 			}
-			if trustMarkID == "" {
+			if trustMarkType == "" {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(
 					oidfed.ErrorInvalidRequest(
-						"required parameter 'trust_mark_id' not given",
+						"required parameter 'trust_mark_type' not given",
 					),
 				)
 			}
 			if !slices.Contains(
 				fed.TrustMarkIssuer.TrustMarkIDs(),
-				trustMarkID,
+				trustMarkType,
 			) {
 				ctx.Status(fiber.StatusNotFound)
 				return ctx.JSON(
-					oidfed.ErrorNotFound("'trust_mark_id' not known"),
+					oidfed.ErrorNotFound("'trust_mark_type' not known"),
 				)
 			}
 
-			status, err := store.TrustMarkedStatus(trustMarkID, sub)
+			status, err := store.TrustMarkedStatus(trustMarkType, sub)
 			if err != nil {
 				ctx.Status(fiber.StatusInternalServerError)
 				return ctx.JSON(oidfed.ErrorServerError(err.Error()))
@@ -71,7 +71,7 @@ func (fed *LightHouse) AddTrustMarkRequestEndpoint(
 			case storage.StatusInactive:
 				fallthrough
 			default:
-				if err = store.Request(trustMarkID, sub); err != nil {
+				if err = store.Request(trustMarkType, sub); err != nil {
 					ctx.Status(fiber.StatusInternalServerError)
 					return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 				}

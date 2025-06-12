@@ -21,29 +21,29 @@ func (fed *LightHouse) AddTrustMarkedEntitiesListingEndpoint(
 	}
 	fed.server.Get(
 		endpoint.Path, func(ctx *fiber.Ctx) error {
-			trustMarkID := ctx.Query("trust_mark_id")
+			trustMarkType := ctx.Query("trust_mark_type")
 			sub := ctx.Query("sub")
-			if trustMarkID == "" {
+			if trustMarkType == "" {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(
 					oidfed.ErrorInvalidRequest(
-						"required parameter 'trust_mark_id' not given",
+						"required parameter 'trust_mark_type' not given",
 					),
 				)
 			}
 			if !slices.Contains(
 				fed.TrustMarkIssuer.TrustMarkIDs(),
-				trustMarkID,
+				trustMarkType,
 			) {
 				ctx.Status(fiber.StatusNotFound)
 				return ctx.JSON(
-					oidfed.ErrorNotFound("'trust_mark_id' not known"),
+					oidfed.ErrorNotFound("'trust_mark_type' not known"),
 				)
 			}
 			entities := make([]string, 0)
 			var err error
 			if sub != "" {
-				hasTM, err := store.HasTrustMark(trustMarkID, sub)
+				hasTM, err := store.HasTrustMark(trustMarkType, sub)
 				if err != nil {
 					ctx.Status(fiber.StatusInternalServerError)
 					return ctx.JSON(oidfed.ErrorServerError(err.Error()))
@@ -52,7 +52,7 @@ func (fed *LightHouse) AddTrustMarkedEntitiesListingEndpoint(
 					entities = []string{sub}
 				}
 			} else {
-				entities, err = store.Active(trustMarkID)
+				entities, err = store.Active(trustMarkType)
 				if err != nil {
 					ctx.Status(fiber.StatusInternalServerError)
 					return ctx.JSON(oidfed.ErrorServerError(err.Error()))
