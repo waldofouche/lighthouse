@@ -1,8 +1,8 @@
 package lighthouse
 
 import (
-	"github.com/go-oidfed/lib/pkg"
-	"github.com/go-oidfed/lib/pkg/apimodel"
+	"github.com/go-oidfed/lib"
+	"github.com/go-oidfed/lib/apimodel"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -24,23 +24,23 @@ func (fed *LightHouse) AddEntityCollectionEndpoint(endpoint EndpointConf) {
 			var req apimodel.EntityCollectionRequest
 			if err := ctx.QueryParser(&req); err != nil {
 				ctx.Status(fiber.StatusBadRequest)
-				return ctx.JSON(pkg.ErrorInvalidRequest("could not parse request parameters: " + err.Error()))
+				return ctx.JSON(oidfed.ErrorInvalidRequest("could not parse request parameters: " + err.Error()))
 			}
 			if req.FromEntityID != "" {
 				ctx.Status(fiber.StatusBadRequest)
-				return ctx.JSON(pkg.ErrorUnsupportedParameter("parameter 'from_entity_id' is not yet supported"))
+				return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'from_entity_id' is not yet supported"))
 			}
 			if req.TrustAnchor == "" {
 				req.TrustAnchor = fed.FederationEntity.EntityID
 			}
 			if req.Limit != 0 {
 				ctx.Status(fiber.StatusBadRequest)
-				return ctx.JSON(pkg.ErrorUnsupportedParameter("parameter 'limit' is not yet supported"))
+				return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'limit' is not yet supported"))
 			}
-			collector := pkg.SimpleEntityCollector{}
+			collector := oidfed.SimpleEntityCollector{}
 			entities := collector.CollectEntities(req)
 
-			res := pkg.EntityCollectionResponse{
+			res := oidfed.EntityCollectionResponse{
 				FederationEntities: entities,
 			}
 			return ctx.JSON(res)

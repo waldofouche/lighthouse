@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-oidfed/lib/pkg"
+	"github.com/go-oidfed/lib"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 
 	"github.com/go-oidfed/lighthouse"
@@ -26,7 +26,7 @@ func main() {
 	for _, tmc := range c.TrustMarks {
 		if err := tmc.Verify(
 			c.EntityID, c.Endpoints.TrustMarkEndpoint.ValidateURL(c.EntityID),
-			pkg.NewTrustMarkSigner(signingKey, jwa.ES512()),
+			oidfed.NewTrustMarkSigner(signingKey, jwa.ES512()),
 		); err != nil {
 			log.Fatal(err)
 		}
@@ -39,8 +39,8 @@ func main() {
 
 	entity, err := lighthouse.NewLightHouse(
 		c.EntityID, c.AuthorityHints,
-		&pkg.Metadata{
-			FederationEntity: &pkg.FederationEntityMetadata{
+		&oidfed.Metadata{
+			FederationEntity: &oidfed.FederationEntityMetadata{
 				OrganizationName: c.OrganizationName,
 				LogoURI:          c.LogoURI,
 			},
@@ -64,23 +64,22 @@ func main() {
 
 	var trustMarkCheckerMap map[string]lighthouse.EntityChecker
 	if len(c.TrustMarkSpecs) > 0 {
-		specs := make([]pkg.TrustMarkSpec, len(c.TrustMarkSpecs))
+		specs := make([]oidfed.TrustMarkSpec, len(c.TrustMarkSpecs))
 		for i, s := range c.TrustMarkSpecs {
 			specs[i] = s.TrustMarkSpec
 			if s.CheckerConfig.Type != "" {
 				if trustMarkCheckerMap == nil {
 					trustMarkCheckerMap = make(map[string]lighthouse.EntityChecker)
 				}
-				trustMarkCheckerMap[s.ID], err = lighthouse.EntityCheckerFromEntityCheckerConfig(
-					s.
-						CheckerConfig,
+				trustMarkCheckerMap[s.TrustMarkType], err = lighthouse.EntityCheckerFromEntityCheckerConfig(
+					s.CheckerConfig,
 				)
 				if err != nil {
 					panic(err)
 				}
 			}
 		}
-		entity.TrustMarkIssuer = pkg.NewTrustMarkIssuer(c.EntityID, entity.GeneralJWTSigner.TrustMarkSigner(), specs)
+		entity.TrustMarkIssuer = oidfed.NewTrustMarkIssuer(c.EntityID, entity.GeneralJWTSigner.TrustMarkSigner(), specs)
 	}
 	log.Println("Initialized Entity")
 

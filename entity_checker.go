@@ -8,23 +8,23 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/go-oidfed/lib/pkg"
-	"github.com/go-oidfed/lib/pkg/apimodel"
-	"github.com/go-oidfed/lib/pkg/jwk"
+	"github.com/go-oidfed/lib"
+	"github.com/go-oidfed/lib/apimodel"
+	"github.com/go-oidfed/lib/jwks"
 )
 
 // EntityChecker is an interface used to check if an entity satisfies
 // some requirements, e.g. to check if an entity should be
 // enrolled in the federation or should be issued a trust mark
 type EntityChecker interface {
-	// Check checks if the entity with the passed pkg.EntityStatement
+	// Check checks if the entity with the passed oidfed.EntityStatement
 	// satisfies the requirements of this EntityChecker or not
 	// It returns a bool indicating this status,
-	// and if not a http status code as well as a pkg.Error as api response
+	// and if not a http status code as well as a oidfed.Error as api response
 	Check(
-		entityConfiguration *pkg.EntityStatement,
+		entityConfiguration *oidfed.EntityStatement,
 		entityTypes []string,
-	) (bool, int, *pkg.Error)
+	) (bool, int, *oidfed.Error)
 	// Unmarshaler is used to load the configuration
 	yaml.Unmarshaler
 }
@@ -86,8 +86,8 @@ func EntityCheckerFromEntityCheckerConfig(c EntityCheckerConfig) (
 type EntityCheckerNone struct{}
 
 // Check implements the EntityChecker interface
-func (EntityCheckerNone) Check(_ *pkg.EntityStatement, _ []string) (
-	bool, int, *pkg.Error,
+func (EntityCheckerNone) Check(_ *oidfed.EntityStatement, _ []string) (
+	bool, int, *oidfed.Error,
 ) {
 	return true, 0, nil
 }
@@ -111,14 +111,14 @@ func NewMultipleEntityCheckerOr(checkers ...EntityChecker) *MultipleEntityChecke
 
 // Check implements the EntityChecker interface
 func (c MultipleEntityCheckerOr) Check(
-	entityStatement *pkg.EntityStatement, entityTypes []string,
-) (bool, int, *pkg.Error) {
+	entityStatement *oidfed.EntityStatement, entityTypes []string,
+) (bool, int, *oidfed.Error) {
 	for _, checker := range c.Checkers {
 		if ok, _, _ := checker.Check(entityStatement, entityTypes); ok {
 			return true, 0, nil
 		}
 	}
-	return false, fiber.StatusForbidden, &pkg.Error{
+	return false, fiber.StatusForbidden, &oidfed.Error{
 		Error:            "forbidden",
 		ErrorDescription: "no enrollment check passed",
 	}
@@ -156,9 +156,9 @@ func NewMultipleEntityCheckerAnd(
 
 // Check implements the EntityChecker interface
 func (c MultipleEntityCheckerAnd) Check(
-	entityStatement *pkg.
+	entityStatement *oidfed.
 		EntityStatement, entityTypes []string,
-) (bool, int, *pkg.Error) {
+) (bool, int, *oidfed.Error) {
 	for _, checker := range c.Checkers {
 		if ok, status, err := checker.Check(entityStatement, entityTypes); !ok {
 			return ok, status, err
@@ -187,19 +187,19 @@ func (c *MultipleEntityCheckerAnd) UnmarshalYAML(node *yaml.Node) error {
 // valid trust mark. The trust mark can be checked with a specific issuer or
 // through the federation
 type TrustMarkEntityChecker struct {
-	TrustMarkID         string                 `yaml:"trust_mark_id"`
-	TrustAnchors        pkg.TrustAnchors       `yaml:"trust_anchors"`
-	TrustMarkIssuerJWKS jwk.JWKS               `yaml:"trust_mark_issuer_jwks"`
-	TrustMarkOwnerSpec  pkg.TrustMarkOwnerSpec `yaml:"trust_mark_owner"`
+	TrustMarkID         string                    `yaml:"trust_mark_id"`
+	TrustAnchors        oidfed.TrustAnchors       `yaml:"trust_anchors"`
+	TrustMarkIssuerJWKS jwks.JWKS                 `yaml:"trust_mark_issuer_jwks"`
+	TrustMarkOwnerSpec  oidfed.TrustMarkOwnerSpec `yaml:"trust_mark_owner"`
 }
 
 // Check implements the EntityChecker interface
 func (c TrustMarkEntityChecker) Check(
-	entityConfiguration *pkg.EntityStatement,
+	entityConfiguration *oidfed.EntityStatement,
 	entityTypes []string, // skipcq: RVV-B0012
-) (bool, int, *pkg.Error) {
+) (bool, int, *oidfed.Error) {
 	tms := entityConfiguration.TrustMarks
-	noTrustMarkError := &pkg.Error{
+	noTrustMarkError := &oidfed.Error{
 		Error:            "forbidden",
 		ErrorDescription: fmt.Sprintf("entity does not contain required trust mark '%s'", c.TrustMarkID),
 	}
@@ -219,7 +219,7 @@ func (c TrustMarkEntityChecker) Check(
 		}
 	} else {
 		for _, ta := range c.TrustAnchors {
-			taConfig, err := pkg.GetEntityConfiguration(ta.EntityID)
+			taConfig, err := oidfed.GetEntityConfiguration(ta.EntityID)
 			if err != nil {
 				continue
 			}
@@ -231,7 +231,7 @@ func (c TrustMarkEntityChecker) Check(
 			}
 		}
 	}
-	return false, fiber.StatusForbidden, &pkg.Error{
+	return false, fiber.StatusForbidden, &oidfed.Error{
 		Error: "forbidden",
 		ErrorDescription: fmt.Sprintf(
 			"could not verify required trust mark '%s'", c.TrustMarkID,
@@ -254,7 +254,7 @@ func (c *TrustMarkEntityChecker) UnmarshalYAML(node *yaml.Node) error {
 // TrustPathEntityChecker checks that the entity has a
 // valid trust path to a trust anchor
 type TrustPathEntityChecker struct {
-	TrustAnchors                pkg.TrustAnchors `yaml:"trust_anchors"`
+	TrustAnchors                oidfed.TrustAnchors `yaml:"trust_anchors"`
 	isAlreadyTrustAnchorChecker EntityIDEntityChecker
 }
 
@@ -273,21 +273,21 @@ func (c *TrustPathEntityChecker) UnmarshalYAML(node *yaml.Node) error {
 
 // Check implements the EntityChecker interface
 func (c TrustPathEntityChecker) Check(
-	entityConfiguration *pkg.EntityStatement,
+	entityConfiguration *oidfed.EntityStatement,
 	entityTypes []string,
-) (bool, int, *pkg.Error) {
+) (bool, int, *oidfed.Error) {
 	if ok, _, _ := c.isAlreadyTrustAnchorChecker.Check(entityConfiguration, entityTypes); ok {
 		return true, 0, nil
 	}
 
-	confirmedValid, _ := pkg.DefaultMetadataResolver.ResolvePossible(
+	confirmedValid, _ := oidfed.DefaultMetadataResolver.ResolvePossible(
 		apimodel.ResolveRequest{
 			Subject:     entityConfiguration.Subject,
 			TrustAnchor: c.TrustAnchors.EntityIDs(),
 		},
 	)
 	if !confirmedValid {
-		return false, fiber.StatusForbidden, &pkg.Error{
+		return false, fiber.StatusForbidden, &oidfed.Error{
 			Error:            "forbidden",
 			ErrorDescription: "no valid trust path to trust anchors found",
 		}
@@ -315,11 +315,11 @@ func (c *EntityIDEntityChecker) UnmarshalYAML(node *yaml.Node) error {
 
 // Check implements the EntityChecker interface
 func (c EntityIDEntityChecker) Check(
-	entityConfiguration *pkg.EntityStatement,
+	entityConfiguration *oidfed.EntityStatement,
 	_ []string,
-) (bool, int, *pkg.Error) {
+) (bool, int, *oidfed.Error) {
 	if !slices.Contains(c.AllowedIDs, entityConfiguration.Subject) {
-		errRes := pkg.ErrorInvalidRequest("this entity is not allowed")
+		errRes := oidfed.ErrorInvalidRequest("this entity is not allowed")
 		return false, fiber.StatusBadRequest, &errRes
 	}
 	return true, 0, nil
@@ -345,11 +345,11 @@ func (c *AuthorityHintEntityChecker) UnmarshalYAML(node *yaml.Node) error {
 
 // Check implements the EntityChecker interface
 func (c AuthorityHintEntityChecker) Check(
-	entityConfiguration *pkg.EntityStatement,
+	entityConfiguration *oidfed.EntityStatement,
 	_ []string,
-) (bool, int, *pkg.Error) {
+) (bool, int, *oidfed.Error) {
 	if !slices.Contains(entityConfiguration.AuthorityHints, c.EntityID) {
-		errRes := pkg.ErrorInvalidRequest(
+		errRes := oidfed.ErrorInvalidRequest(
 			fmt.Sprintf("must include '%s' in authority_hints", c.EntityID),
 		)
 		return false, fiber.StatusBadRequest, &errRes

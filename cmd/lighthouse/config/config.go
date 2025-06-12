@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/fatih/structs"
-	"github.com/go-oidfed/lib/pkg"
+	"github.com/go-oidfed/lib"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
@@ -17,28 +17,28 @@ import (
 
 // Config holds configuration for the entity
 type Config struct {
-	ServerPort            int                                       `yaml:"server_port"`
-	EntityID              string                                    `yaml:"entity_id"`
-	LogoURI               string                                    `yaml:"logo_uri"`
-	AuthorityHints        []string                                  `yaml:"authority_hints"`
-	MetadataPolicyFile    string                                    `yaml:"metadata_policy_file"`
-	MetadataPolicy        *pkg.MetadataPolicies                     `yaml:"-"`
-	SigningKeyFile        string                                    `yaml:"signing_key_file"`
-	ConfigurationLifetime int64                                     `yaml:"configuration_lifetime"`
-	OrganizationName      string                                    `yaml:"organization_name"`
-	DataLocation          string                                    `yaml:"data_location"`
-	ReadableStorage       bool                                      `yaml:"human_readable_storage"`
-	EnableDebugLog        bool                                      `yaml:"enable_debug_log"`
-	Endpoints             Endpoints                                 `yaml:"endpoints"`
-	TrustMarkSpecs        []extendedTrustMarkSpec                   `yaml:"trust_mark_specs"`
-	TrustMarks            []*pkg.EntityConfigurationTrustMarkConfig `yaml:"trust_marks"`
-	TrustMarkIssuers      pkg.AllowedTrustMarkIssuers               `yaml:"trust_mark_issuers"`
-	TrustMarkOwners       pkg.TrustMarkOwners                       `yaml:"trust_mark_owners"`
+	ServerPort            int                                          `yaml:"server_port"`
+	EntityID              string                                       `yaml:"entity_id"`
+	LogoURI               string                                       `yaml:"logo_uri"`
+	AuthorityHints        []string                                     `yaml:"authority_hints"`
+	MetadataPolicyFile    string                                       `yaml:"metadata_policy_file"`
+	MetadataPolicy        *oidfed.MetadataPolicies                     `yaml:"-"`
+	SigningKeyFile        string                                       `yaml:"signing_key_file"`
+	ConfigurationLifetime int64                                        `yaml:"configuration_lifetime"`
+	OrganizationName      string                                       `yaml:"organization_name"`
+	DataLocation          string                                       `yaml:"data_location"`
+	ReadableStorage       bool                                         `yaml:"human_readable_storage"`
+	EnableDebugLog        bool                                         `yaml:"enable_debug_log"`
+	Endpoints             Endpoints                                    `yaml:"endpoints"`
+	TrustMarkSpecs        []extendedTrustMarkSpec                      `yaml:"trust_mark_specs"`
+	TrustMarks            []*oidfed.EntityConfigurationTrustMarkConfig `yaml:"trust_marks"`
+	TrustMarkIssuers      oidfed.AllowedTrustMarkIssuers               `yaml:"trust_mark_issuers"`
+	TrustMarkOwners       oidfed.TrustMarkOwners                       `yaml:"trust_mark_owners"`
 }
 
 type extendedTrustMarkSpec struct {
-	CheckerConfig     lighthouse.EntityCheckerConfig `yaml:"checker"`
-	pkg.TrustMarkSpec `yaml:",inline"`
+	CheckerConfig        lighthouse.EntityCheckerConfig `yaml:"checker"`
+	oidfed.TrustMarkSpec `yaml:",inline"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface
@@ -116,7 +116,7 @@ func Load(filename string) {
 		log.Fatal(err)
 	}
 	if c.EnableDebugLog {
-		pkg.EnableDebugLogging()
+		oidfed.EnableDebugLogging()
 	}
 	if c.EntityID == "" {
 		log.Fatal("entity_id not set")

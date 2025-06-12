@@ -3,10 +3,10 @@ package lighthouse
 import (
 	"slices"
 
+	"github.com/go-oidfed/lib/oidfedconst"
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/go-oidfed/lib/pkg"
-	"github.com/go-oidfed/lib/pkg/constants"
+	"github.com/go-oidfed/lib"
 
 	"github.com/go-oidfed/lighthouse/storage"
 )
@@ -28,7 +28,7 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 			if sub == "" {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(
-					pkg.ErrorInvalidRequest(
+					oidfed.ErrorInvalidRequest(
 						"required parameter 'sub' not given",
 					),
 				)
@@ -36,7 +36,7 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 			if trustMarkID == "" {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(
-					pkg.ErrorInvalidRequest(
+					oidfed.ErrorInvalidRequest(
 						"required parameter 'trust_mark_id' not given",
 					),
 				)
@@ -47,24 +47,24 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 			) {
 				ctx.Status(fiber.StatusNotFound)
 				return ctx.JSON(
-					pkg.ErrorNotFound("'trust_mark_id' not known"),
+					oidfed.ErrorNotFound("'trust_mark_id' not known"),
 				)
 			}
 
 			status, err := store.TrustMarkedStatus(trustMarkID, sub)
 			if err != nil {
 				ctx.Status(fiber.StatusInternalServerError)
-				return ctx.JSON(pkg.ErrorServerError(err.Error()))
+				return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 			}
 			switch status {
 			case storage.StatusActive:
 				return issueAndSendTrustMark(ctx, fed, trustMarkID, sub)
 			case storage.StatusBlocked:
 				ctx.Status(fiber.StatusForbidden)
-				return ctx.JSON(pkg.ErrorInvalidRequest("subject cannot obtain this trust mark"))
+				return ctx.JSON(oidfed.ErrorInvalidRequest("subject cannot obtain this trust mark"))
 			case storage.StatusPending:
 				ctx.Status(fiber.StatusAccepted)
-				return ctx.JSON(pkg.ErrorInvalidRequest("approval pending"))
+				return ctx.JSON(oidfed.ErrorInvalidRequest("approval pending"))
 			case storage.StatusInactive:
 				// subject does not have the trust mark,
 				// check if it is entitled to do so
@@ -75,13 +75,13 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 				if checker == nil {
 					ctx.Status(fiber.StatusNotFound)
 					return ctx.JSON(
-						pkg.ErrorNotFound("subject does not have this trust mark"),
+						oidfed.ErrorNotFound("subject does not have this trust mark"),
 					)
 				}
-				entityConfig, err := pkg.GetEntityConfiguration(sub)
+				entityConfig, err := oidfed.GetEntityConfiguration(sub)
 				if err != nil {
 					ctx.Status(fiber.StatusBadRequest)
-					return ctx.JSON(pkg.ErrorInvalidRequest("could not obtain entity configuration"))
+					return ctx.JSON(oidfed.ErrorInvalidRequest("could not obtain entity configuration"))
 				}
 				ok, _, errResponse := checker.Check(
 					entityConfig, entityConfig.Metadata.GuessEntityTypes(),
@@ -89,7 +89,7 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 				if !ok {
 					ctx.Status(fiber.StatusNotFound)
 					return ctx.JSON(
-						pkg.ErrorNotFound(
+						oidfed.ErrorNotFound(
 							"subject does not have this trust mark and is not" +
 								" entitled to get it: " + errResponse.ErrorDescription,
 						),
@@ -98,7 +98,7 @@ func (fed *LightHouse) AddTrustMarkEndpoint(
 				// ok, so we add sub to the list and issue the trust mark
 				if err = store.Approve(trustMarkID, sub); err != nil {
 					ctx.Status(fiber.StatusInternalServerError)
-					return ctx.JSON(pkg.ErrorServerError(err.Error()))
+					return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 				}
 			}
 			return issueAndSendTrustMark(ctx, fed, trustMarkID, sub)
@@ -113,9 +113,9 @@ func issueAndSendTrustMark(
 	if err != nil {
 		if err != nil {
 			ctx.Status(fiber.StatusInternalServerError)
-			return ctx.JSON(pkg.ErrorServerError(err.Error()))
+			return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 		}
 	}
-	ctx.Set(fiber.HeaderContentType, constants.ContentTypeTrustMark)
+	ctx.Set(fiber.HeaderContentType, oidfedconst.ContentTypeTrustMark)
 	return ctx.SendString(tm.TrustMarkJWT)
 }

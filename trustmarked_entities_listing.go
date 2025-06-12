@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/go-oidfed/lib/pkg"
+	"github.com/go-oidfed/lib"
 
 	"github.com/go-oidfed/lighthouse/storage"
 )
@@ -26,7 +26,7 @@ func (fed *LightHouse) AddTrustMarkedEntitiesListingEndpoint(
 			if trustMarkID == "" {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(
-					pkg.ErrorInvalidRequest(
+					oidfed.ErrorInvalidRequest(
 						"required parameter 'trust_mark_id' not given",
 					),
 				)
@@ -37,7 +37,7 @@ func (fed *LightHouse) AddTrustMarkedEntitiesListingEndpoint(
 			) {
 				ctx.Status(fiber.StatusNotFound)
 				return ctx.JSON(
-					pkg.ErrorNotFound("'trust_mark_id' not known"),
+					oidfed.ErrorNotFound("'trust_mark_id' not known"),
 				)
 			}
 			entities := make([]string, 0)
@@ -46,7 +46,7 @@ func (fed *LightHouse) AddTrustMarkedEntitiesListingEndpoint(
 				hasTM, err := store.HasTrustMark(trustMarkID, sub)
 				if err != nil {
 					ctx.Status(fiber.StatusInternalServerError)
-					return ctx.JSON(pkg.ErrorServerError(err.Error()))
+					return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 				}
 				if hasTM {
 					entities = []string{sub}
@@ -55,7 +55,7 @@ func (fed *LightHouse) AddTrustMarkedEntitiesListingEndpoint(
 				entities, err = store.Active(trustMarkID)
 				if err != nil {
 					ctx.Status(fiber.StatusInternalServerError)
-					return ctx.JSON(pkg.ErrorServerError(err.Error()))
+					return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 				}
 				if len(entities) == 0 {
 					entities = make([]string, 0)

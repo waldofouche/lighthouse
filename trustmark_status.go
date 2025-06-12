@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/go-oidfed/lib/pkg"
+	"github.com/go-oidfed/lib"
 
 	"github.com/go-oidfed/lighthouse/storage"
 )
@@ -26,7 +26,7 @@ func (fed *LightHouse) AddTrustMarkStatusEndpoint(
 			if sub == "" {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(
-					pkg.ErrorInvalidRequest(
+					oidfed.ErrorInvalidRequest(
 						"required parameter 'sub' not given",
 					),
 				)
@@ -34,7 +34,7 @@ func (fed *LightHouse) AddTrustMarkStatusEndpoint(
 			if trustMarkID == "" {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(
-					pkg.ErrorInvalidRequest(
+					oidfed.ErrorInvalidRequest(
 						"required parameter 'trust_mark_id' not given",
 					),
 				)
@@ -45,14 +45,14 @@ func (fed *LightHouse) AddTrustMarkStatusEndpoint(
 			) {
 				ctx.Status(fiber.StatusNotFound)
 				return ctx.JSON(
-					pkg.ErrorNotFound("'trust_mark_id' not known"),
+					oidfed.ErrorNotFound("'trust_mark_id' not known"),
 				)
 			}
 
 			hasTM, err := store.HasTrustMark(trustMarkID, sub)
 			if err != nil {
 				ctx.Status(fiber.StatusInternalServerError)
-				return ctx.JSON(pkg.ErrorServerError(err.Error()))
+				return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 			}
 			return ctx.JSON(
 				map[string]any{

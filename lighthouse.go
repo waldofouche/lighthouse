@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/go-oidfed/lib/oidfedconst"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/compress"
@@ -14,10 +15,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 
-	"github.com/go-oidfed/lib/pkg"
-	"github.com/go-oidfed/lib/pkg/cache"
-	"github.com/go-oidfed/lib/pkg/constants"
-	"github.com/go-oidfed/lib/pkg/unixtime"
+	"github.com/go-oidfed/lib"
+	"github.com/go-oidfed/lib/cache"
+	"github.com/go-oidfed/lib/unixtime"
 
 	"github.com/go-oidfed/lighthouse/internal"
 	"github.com/go-oidfed/lighthouse/storage"
@@ -48,9 +48,9 @@ func (c *EndpointConf) ValidateURL(rootURL string) string {
 
 // LightHouse is a type a that represents a federation entity that can have multiple purposes (TA/IA + TMI, etc.)
 type LightHouse struct {
-	*pkg.FederationEntity
-	*pkg.TrustMarkIssuer
-	*pkg.GeneralJWTSigner
+	*oidfed.FederationEntity
+	*oidfed.TrustMarkIssuer
+	*oidfed.GeneralJWTSigner
 	SubordinateStatementsConfig
 	server *fiber.App
 }
@@ -58,35 +58,35 @@ type LightHouse struct {
 // SubordinateStatementsConfig is a type for setting MetadataPolicies and additional attributes that should go into the
 // SubordinateStatements issued by this LightHouse
 type SubordinateStatementsConfig struct {
-	MetadataPolicies             *pkg.MetadataPolicies
+	MetadataPolicies             *oidfed.MetadataPolicies
 	SubordinateStatementLifetime int64
-	Constraints                  *pkg.ConstraintSpecification
+	Constraints                  *oidfed.ConstraintSpecification
 	CriticalExtensions           []string
-	MetadataPolicyCrit           []pkg.PolicyOperatorName
+	MetadataPolicyCrit           []oidfed.PolicyOperatorName
 	Extra                        map[string]any
 }
 
 // NewLightHouse creates a new LightHouse
 func NewLightHouse(
-	entityID string, authorityHints []string, metadata *pkg.Metadata,
+	entityID string, authorityHints []string, metadata *oidfed.Metadata,
 	privateSigningKey crypto.Signer, signingAlg jwa.SignatureAlgorithm, configurationLifetime int64,
 	stmtConfig SubordinateStatementsConfig,
 ) (
 	*LightHouse,
 	error,
 ) {
-	generalSigner := pkg.NewGeneralJWTSigner(privateSigningKey, signingAlg)
-	fed, err := pkg.NewFederationEntity(
+	generalSigner := oidfed.NewGeneralJWTSigner(privateSigningKey, signingAlg)
+	fed, err := oidfed.NewFederationEntity(
 		entityID, authorityHints, metadata, generalSigner.EntityStatementSigner(), configurationLifetime,
 	)
 	if err != nil {
 		return nil, err
 	}
 	if fed.Metadata == nil {
-		fed.Metadata = &pkg.Metadata{}
+		fed.Metadata = &oidfed.Metadata{}
 	}
 	if fed.Metadata.FederationEntity == nil {
-		fed.Metadata.FederationEntity = &pkg.FederationEntityMetadata{}
+		fed.Metadata.FederationEntity = &oidfed.FederationEntityMetadata{}
 	}
 	server := fiber.New()
 	server.Use(recover.New())
@@ -94,7 +94,7 @@ func NewLightHouse(
 	server.Use(logger.New())
 	entity := &LightHouse{
 		FederationEntity:            fed,
-		TrustMarkIssuer:             pkg.NewTrustMarkIssuer(entityID, generalSigner.TrustMarkSigner(), nil),
+		TrustMarkIssuer:             oidfed.NewTrustMarkIssuer(entityID, generalSigner.TrustMarkSigner(), nil),
 		GeneralJWTSigner:            generalSigner,
 		SubordinateStatementsConfig: stmtConfig,
 		server:                      server,
@@ -106,21 +106,21 @@ func NewLightHouse(
 			set, err := cache.Get(cacheKey, &cached)
 			if err != nil {
 				ctx.Status(fiber.StatusInternalServerError)
-				return ctx.JSON(pkg.ErrorServerError(err.Error()))
+				return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 			}
 			if set {
-				ctx.Set(fiber.HeaderContentType, constants.ContentTypeEntityStatement)
+				ctx.Set(fiber.HeaderContentType, oidfedconst.ContentTypeEntityStatement)
 				return ctx.Send(cached)
 			}
 			jwt, err := entity.EntityConfigurationJWT()
 			if err != nil {
-				return ctx.Status(fiber.StatusInternalServerError).JSON(pkg.ErrorServerError(err.Error()))
+				return ctx.Status(fiber.StatusInternalServerError).JSON(oidfed.ErrorServerError(err.Error()))
 			}
 			err = cache.Set(cacheKey, jwt, entityConfigurationCachePeriod)
 			if err != nil {
 				log.Println(err.Error())
 			}
-			ctx.Set(fiber.HeaderContentType, constants.ContentTypeEntityStatement)
+			ctx.Set(fiber.HeaderContentType, oidfedconst.ContentTypeEntityStatement)
 			return ctx.Send(jwt)
 		},
 	)
@@ -138,10 +138,10 @@ func (fed LightHouse) Listen(addr string) error {
 	return fed.server.Listen(addr)
 }
 
-// CreateSubordinateStatement returns a pkg.EntityStatementPayload for the passed storage.SubordinateInfo
-func (fed LightHouse) CreateSubordinateStatement(subordinate *storage.SubordinateInfo) pkg.EntityStatementPayload {
+// CreateSubordinateStatement returns a oidfed.EntityStatementPayload for the passed storage.SubordinateInfo
+func (fed LightHouse) CreateSubordinateStatement(subordinate *storage.SubordinateInfo) oidfed.EntityStatementPayload {
 	now := time.Now()
-	return pkg.EntityStatementPayload{
+	return oidfed.EntityStatementPayload{
 		Issuer:             fed.FederationEntity.EntityID,
 		Subject:            subordinate.EntityID,
 		IssuedAt:           unixtime.Unixtime{Time: now},

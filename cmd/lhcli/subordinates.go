@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/go-oidfed/lib/pkg"
+	"github.com/go-oidfed/lib"
 
 	"github.com/go-oidfed/lighthouse/storage"
 )
@@ -82,7 +82,7 @@ func addSubordinate(cmd *cobra.Command, args []string) error {
 
 	entityID := args[0]
 
-	entityConfig, err := pkg.GetEntityConfiguration(entityID)
+	entityConfig, err := oidfed.GetEntityConfiguration(entityID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get entity configuration")
 	}

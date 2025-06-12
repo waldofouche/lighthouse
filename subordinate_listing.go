@@ -6,7 +6,7 @@ import (
 	arrays "github.com/adam-hanna/arrayOperations"
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/go-oidfed/lib/pkg"
+	"github.com/go-oidfed/lib"
 
 	"github.com/go-oidfed/lighthouse/storage"
 )
@@ -45,16 +45,16 @@ func handleSubordinateListing(
 ) error {
 	if intermediate {
 		ctx.Status(fiber.StatusBadRequest)
-		return ctx.JSON(pkg.ErrorUnsupportedParameter("parameter 'intermediate' is not supported"))
+		return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'intermediate' is not supported"))
 	}
 	if trustMarkedEntitiesStorage == nil {
 		if trustMarked {
 			ctx.Status(fiber.StatusBadRequest)
-			return ctx.JSON(pkg.ErrorUnsupportedParameter("parameter 'trust_marked' is not supported"))
+			return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'trust_marked' is not supported"))
 		}
 		if trustMarkID != "" {
 			ctx.Status(fiber.StatusBadRequest)
-			return ctx.JSON(pkg.ErrorUnsupportedParameter("parameter 'trust_mark_id' is not supported"))
+			return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'trust_mark_id' is not supported"))
 		}
 	}
 
@@ -64,21 +64,21 @@ func handleSubordinateListing(
 	if entityType != "" {
 		if err := q.AddFilter(filterEntityType, entityType); err != nil {
 			ctx.Status(fiber.StatusInternalServerError)
-			return ctx.JSON(pkg.ErrorServerError(err.Error()))
+			return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 		}
 	}
 
 	ids, err := q.EntityIDs()
 	if err != nil {
 		ctx.Status(fiber.StatusInternalServerError)
-		return ctx.JSON(pkg.ErrorServerError(err.Error()))
+		return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 	}
 
 	if trustMarkID != "" || trustMarked {
 		trustMarkedEntities, err := trustMarkedEntitiesStorage.Active(trustMarkID)
 		if err != nil {
 			ctx.Status(fiber.StatusInternalServerError)
-			return ctx.JSON(pkg.ErrorServerError(err.Error()))
+			return ctx.JSON(oidfed.ErrorServerError(err.Error()))
 		}
 		ids = arrays.Intersect(ids, trustMarkedEntities)
 	}

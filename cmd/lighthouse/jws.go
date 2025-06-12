@@ -13,7 +13,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 
-	myjwk "github.com/go-oidfed/lib/pkg/jwk"
+	myjwk "github.com/go-oidfed/lib/jwks"
 
 	"github.com/go-oidfed/lighthouse/cmd/lighthouse/config"
 )

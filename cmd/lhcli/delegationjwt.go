@@ -16,13 +16,13 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/go-oidfed/lib/pkg"
-	"github.com/go-oidfed/lib/pkg/jwk"
+	"github.com/go-oidfed/lib"
+	"github.com/go-oidfed/lib/jwks"
 )
 
 type delegationConfig struct {
 	TrustMarkOwner string                    `yaml:"trust_mark_owner" json:"trust_mark_owner"`
-	JWKS           jwk.JWKS                  `yaml:"jwks" json:"jwks"`
+	JWKS           jwks.JWKS                 `yaml:"jwks" json:"jwks"`
 	SigningKey     string                    `yaml:"signing_key" json:"signing_key"`
 	TrustMarks     []delegationTrustMarkSpec `yaml:"trust_marks" json:"trust_marks"`
 }
@@ -86,21 +86,21 @@ func runDelegation(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if conf.JWKS.Set == nil {
-		conf.JWKS = jwk.KeyToJWKS(sk.PublicKey, jwa.ES512())
+		conf.JWKS = jwks.KeyToJWKS(sk.PublicKey, jwa.ES512())
 	}
 
-	ownedTrustMarks := make([]pkg.OwnedTrustMark, len(conf.TrustMarks))
+	ownedTrustMarks := make([]oidfed.OwnedTrustMark, len(conf.TrustMarks))
 	for i, c := range conf.TrustMarks {
-		ownedTrustMarks[i] = pkg.OwnedTrustMark{
+		ownedTrustMarks[i] = oidfed.OwnedTrustMark{
 			ID:                 c.ID,
 			DelegationLifetime: time.Duration(c.DelegationLifetime) * time.Second,
 			Ref:                c.Ref,
 		}
 	}
 
-	tmo := pkg.NewTrustMarkOwner(
+	tmo := oidfed.NewTrustMarkOwner(
 		conf.TrustMarkOwner,
-		pkg.NewGeneralJWTSigner(sk, jwa.ES512()).TrustMarkDelegationSigner(),
+		oidfed.NewGeneralJWTSigner(sk, jwa.ES512()).TrustMarkDelegationSigner(),
 		ownedTrustMarks,
 	)
 	for i, c := range conf.TrustMarks {

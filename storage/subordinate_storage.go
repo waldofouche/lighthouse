@@ -5,8 +5,8 @@ import (
 
 	"github.com/vmihailenco/msgpack/v5"
 
-	"github.com/go-oidfed/lib/pkg"
-	"github.com/go-oidfed/lib/pkg/jwk"
+	"github.com/go-oidfed/lib"
+	"github.com/go-oidfed/lib/jwks"
 )
 
 // Status is a type for holding a status for something that is stored in the
@@ -24,17 +24,17 @@ const (
 
 // SubordinateInfo holds information about a subordinate for storage
 type SubordinateInfo struct {
-	JWKS               jwk.JWKS                     `json:"jwks"`
-	EntityTypes        []string                     `json:"entity_types"`
-	EntityID           string                       `json:"entity_id"`
-	Metadata           *pkg.Metadata                `json:"metadata,omitempty"`
-	MetadataPolicy     *pkg.MetadataPolicies        `json:"metadata_policy,omitempty"`
-	Constraints        *pkg.ConstraintSpecification `json:"constraints,omitempty"`
-	CriticalExtensions []string                     `json:"crit,omitempty"`
-	MetadataPolicyCrit []pkg.PolicyOperatorName     `json:"metadata_policy_crit,omitempty"`
-	TrustMarks         pkg.TrustMarkInfos           `json:"trust_marks,omitempty"`
-	Extra              map[string]interface{}       `json:"-"`
-	Status             Status                       `json:"status"`
+	JWKS               jwks.JWKS                       `json:"jwks"`
+	EntityTypes        []string                        `json:"entity_types"`
+	EntityID           string                          `json:"entity_id"`
+	Metadata           *oidfed.Metadata                `json:"metadata,omitempty"`
+	MetadataPolicy     *oidfed.MetadataPolicies        `json:"metadata_policy,omitempty"`
+	Constraints        *oidfed.ConstraintSpecification `json:"constraints,omitempty"`
+	CriticalExtensions []string                        `json:"crit,omitempty"`
+	MetadataPolicyCrit []oidfed.PolicyOperatorName     `json:"metadata_policy_crit,omitempty"`
+	TrustMarks         oidfed.TrustMarkInfos           `json:"trust_marks,omitempty"`
+	Extra              map[string]interface{}          `json:"-"`
+	Status             Status                          `json:"status"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface
