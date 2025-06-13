@@ -1,0 +1,33 @@
+name: Deploy MkDocs documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'logo_dm.svg'
+      - 'logo_lm.svg'
+
+permissions:
+  contents: write  # Needed to push to gh-pages
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install MkDocs and theme
+        run: |
+          pip install mkdocs mkdocs-material mkdocs-macros-plugin mkdocs-awesome-pages-plugin mkdocs-material[imaging] markdown-exec[ansi]
+
+      - name: Deploy docs to GitHub Pages
+        run: mkdocs gh-deploy --force

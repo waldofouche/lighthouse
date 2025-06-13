@@ -1,0 +1,83 @@
+site_name: LightHouse
+site_author: Gabriel Zachmann
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      media: "(prefers-color-scheme: dark)"
+      primary: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      media: "(prefers-color-scheme: light)"
+      primary: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  logo: assets/logo_dm.svg
+  favicon: assets/favicon.ico
+  features:
+    - navigation.tabs
+    - navigation.instant
+    - navigation.tracking
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - toc.integrate
+    - content.code.copy
+    - content.code.annotate
+    - content.tooltips
+  navigation_depth: 4
+  hljs_languages:
+    - shell session
+    - yaml
+    - json
+markdown_extensions:
+  - toc:
+      permalink: true
+  - attr_list
+  - abbr
+  - admonition
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+plugins:
+  - search
+  - awesome-pages:
+      collapse_single_pages: true
+  - macros
+  - social
+  - privacy
+  - markdown-exec
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/go-oidfed/lighthouse
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/oidfed/lighthouse
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:oidfed@lists.kit.edu
+  generator: false
+copyright: Copyright &copy; 2025 - 2025 Gabriel Zachmann
+extra_css:
+  - stylesheets/extra.css
+  - stylesheets/admonitions.css
