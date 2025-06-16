@@ -23,6 +23,7 @@ import (
 	"github.com/go-oidfed/lib/unixtime"
 
 	"github.com/go-oidfed/lighthouse/internal/utils"
+	"github.com/go-oidfed/lighthouse/internal/version"
 	"github.com/go-oidfed/lighthouse/storage"
 )
 
@@ -69,7 +70,7 @@ type SubordinateStatementsConfig struct {
 	Extra                        map[string]any
 }
 
-// The fiber.Config that is used to init the http fiber.App
+// FiberServerConfig is the fiber.Config that is used to init the http fiber.App
 var FiberServerConfig = fiber.Config{
 	ReadTimeout:    3 * time.Second,
 	WriteTimeout:   20 * time.Second,
@@ -84,14 +85,18 @@ var FiberServerConfig = fiber.Config{
 func NewLightHouse(
 	entityID string, authorityHints []string, metadata *oidfed.Metadata,
 	privateSigningKey crypto.Signer, signingAlg jwa.SignatureAlgorithm, configurationLifetime int64,
-	stmtConfig SubordinateStatementsConfig,
+	stmtConfig SubordinateStatementsConfig, extra map[string]any,
 ) (
 	*LightHouse,
 	error,
 ) {
+	if extra == nil {
+		extra = make(map[string]any)
+	}
+	extra["lighthouse_version"] = version.VERSION
 	generalSigner := oidfed.NewGeneralJWTSigner(privateSigningKey, signingAlg)
 	fed, err := oidfed.NewFederationEntity(
-		entityID, authorityHints, metadata, generalSigner.EntityStatementSigner(), configurationLifetime,
+		entityID, authorityHints, metadata, generalSigner.EntityStatementSigner(), configurationLifetime, extra,
 	)
 	if err != nil {
 		return nil, err
@@ -180,7 +185,7 @@ func (fed LightHouse) Start(conf ServerConf) {
 	log.WithError(fed.server.ListenTLS(":443", conf.TLS.Cert, conf.TLS.Key)).Fatal()
 }
 
-// CreateSubordinateStatement returns a oidfed.EntityStatementPayload for the passed storage.SubordinateInfo
+// CreateSubordinateStatement returns an oidfed.EntityStatementPayload for the passed storage.SubordinateInfo
 func (fed LightHouse) CreateSubordinateStatement(subordinate *storage.SubordinateInfo) oidfed.EntityStatementPayload {
 	now := time.Now()
 	return oidfed.EntityStatementPayload{
@@ -196,6 +201,6 @@ func (fed LightHouse) CreateSubordinateStatement(subordinate *storage.Subordinat
 		CriticalExtensions: fed.CriticalExtensions,
 		MetadataPolicyCrit: fed.MetadataPolicyCrit,
 		TrustMarks:         subordinate.TrustMarks,
-		Extra:              utils.MergeMaps(true, fed.Extra, subordinate.Extra),
+		Extra:              utils.MergeMaps(true, fed.SubordinateStatementsConfig.Extra, subordinate.Extra),
 	}
 }

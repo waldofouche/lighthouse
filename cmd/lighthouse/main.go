@@ -49,7 +49,7 @@ func main() {
 			MetadataPolicies:             nil,
 			SubordinateStatementLifetime: 3600,
 			// TODO read all of this from config or a storage backend
-		},
+		}, nil,
 	)
 	if err != nil {
 		panic(err)
