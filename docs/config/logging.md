@@ -2,11 +2,6 @@
 icon: material/script-text
 ---
 
-!!! warning
-
-    :fontawesome-solid-person-digging: This page is WIP. The below content is not (yet) applicable.
-
-
 Under the `logging` config option the logging behavior and locations can be 
 configured.
 
@@ -21,7 +16,7 @@ Under the `access` option the http access log can be configured.
     ```yaml
     logging:
         access:
-            dir: /var/log/offa
+            dir: /var/log/lighthouse
             stderr: true
     ```
 
@@ -33,30 +28,30 @@ The following options are available:
 
 The `dir` option is used to configure the directory where the log file 
 should be stored.
-If not set, OFFA will not log to file.
+If not set, LightHouse will not log to file.
 
 ### `stderr`
 <span class="badge badge-purple" title="Value Type">boolean</span>
 <span class="badge badge-blue" title="Default Value">`false`</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
 
-The `stderr` option indicates if OFFA logs to `stderr`.
+The `stderr` option indicates if LightHouse logs to `stderr`.
 
 ## `internal`
-The `internal` option is used to configure logging for OFFA's internal 
-logging, i.e. logging related to what OFFA does.
+The `internal` option is used to configure logging for LightHouse's internal 
+logging, i.e. logging related to what LightHouse does.
 
 ??? file "config.yaml"
 
     ```yaml
     logging:
         internal:
-            dir: /var/log/offa
+            dir: /var/log/lighthouse
             stderr: true
             level: info
             smart:
                 enabled: true
-                dir: /var/log/offa/errors
+                dir: /var/log/lighthouse/errors
     ```
 
 All configuration options from [`access`](#access) also can be used with 

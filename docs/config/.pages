@@ -1,2 +1,8 @@
 arrange:
   - index.md
+  - server.md
+  - logging.md
+  - storage.md
+  - signing.md
+  - endpoints.md
+  - federation_data.md
