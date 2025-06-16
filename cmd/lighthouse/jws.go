@@ -33,10 +33,10 @@ func mustNewKey() *ecdsa.PrivateKey {
 }
 
 func mustLoadKey() crypto.Signer {
-	data, err := os.ReadFile(config.Get().SigningKeyFile)
+	data, err := os.ReadFile(config.Get().Signing.KeyFile)
 	if err != nil {
 		sk := mustNewKey()
-		if err = os.WriteFile(config.Get().SigningKeyFile, exportECPrivateKeyAsPem(sk), 0600); err != nil {
+		if err = os.WriteFile(config.Get().Signing.KeyFile, exportECPrivateKeyAsPem(sk), 0600); err != nil {
 			log.Fatal(err)
 		}
 		return sk

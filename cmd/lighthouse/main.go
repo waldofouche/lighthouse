@@ -1,16 +1,15 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"net/http"
 	"os"
 
 	"github.com/go-oidfed/lib"
 	"github.com/lestrrat-go/jwx/v3/jwa"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/go-oidfed/lighthouse"
 	"github.com/go-oidfed/lighthouse/cmd/lighthouse/config"
+	"github.com/go-oidfed/lighthouse/internal/logger"
 )
 
 func main() {
@@ -19,33 +18,34 @@ func main() {
 		configFile = os.Args[1]
 	}
 	config.Load(configFile)
-	log.Println("Loaded Config")
+	logger.Init()
+	log.Info("Loaded Config")
 	c := config.Get()
 	initKey()
 	log.Println("Loaded signing key")
-	for _, tmc := range c.TrustMarks {
+	for _, tmc := range c.Federation.TrustMarks {
 		if err := tmc.Verify(
-			c.EntityID, c.Endpoints.TrustMarkEndpoint.ValidateURL(c.EntityID),
+			c.Federation.EntityID, c.Endpoints.TrustMarkEndpoint.ValidateURL(c.Federation.EntityID),
 			oidfed.NewTrustMarkSigner(signingKey, jwa.ES512()),
 		); err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	subordinateStorage, trustMarkedEntitiesStorage, err := config.LoadStorageBackends(c)
+	subordinateStorage, trustMarkedEntitiesStorage, err := config.LoadStorageBackends(c.Storage)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	entity, err := lighthouse.NewLightHouse(
-		c.EntityID, c.AuthorityHints,
+	lh, err := lighthouse.NewLightHouse(
+		c.Federation.EntityID, c.Federation.AuthorityHints,
 		&oidfed.Metadata{
 			FederationEntity: &oidfed.FederationEntityMetadata{
-				OrganizationName: c.OrganizationName,
-				LogoURI:          c.LogoURI,
+				OrganizationName: c.Federation.OrganizationName,
+				LogoURI:          c.Federation.LogoURI,
 			},
 		},
-		signingKey, jwa.ES512(), c.ConfigurationLifetime, lighthouse.SubordinateStatementsConfig{
+		signingKey, jwa.ES512(), c.Federation.ConfigurationLifetime, lighthouse.SubordinateStatementsConfig{
 			MetadataPolicies:             nil,
 			SubordinateStatementLifetime: 3600,
 			// TODO read all of this from config or a storage backend
@@ -55,17 +55,17 @@ func main() {
 		panic(err)
 	}
 
-	entity.MetadataPolicies = c.MetadataPolicy
+	lh.MetadataPolicies = c.Federation.MetadataPolicy
 	// TODO other constraints etc.
 
-	entity.TrustMarkIssuers = c.TrustMarkIssuers
-	entity.TrustMarkOwners = c.TrustMarkOwners
-	entity.TrustMarks = c.TrustMarks
+	lh.TrustMarkIssuers = c.Federation.TrustMarkIssuers
+	lh.TrustMarkOwners = c.Federation.TrustMarkOwners
+	lh.TrustMarks = c.Federation.TrustMarks
 
 	var trustMarkCheckerMap map[string]lighthouse.EntityChecker
-	if len(c.TrustMarkSpecs) > 0 {
-		specs := make([]oidfed.TrustMarkSpec, len(c.TrustMarkSpecs))
-		for i, s := range c.TrustMarkSpecs {
+	if specLen := len(c.Endpoints.TrustMarkEndpoint.TrustMarkSpecs); specLen > 0 {
+		specs := make([]oidfed.TrustMarkSpec, specLen)
+		for i, s := range c.Endpoints.TrustMarkEndpoint.TrustMarkSpecs {
 			specs[i] = s.TrustMarkSpec
 			if s.CheckerConfig.Type != "" {
 				if trustMarkCheckerMap == nil {
@@ -79,30 +79,33 @@ func main() {
 				}
 			}
 		}
-		entity.TrustMarkIssuer = oidfed.NewTrustMarkIssuer(c.EntityID, entity.GeneralJWTSigner.TrustMarkSigner(), specs)
+		lh.TrustMarkIssuer = oidfed.NewTrustMarkIssuer(
+			c.Federation.EntityID, lh.GeneralJWTSigner.TrustMarkSigner(),
+			specs,
+		)
 	}
 	log.Println("Initialized Entity")
 
 	if endpoint := c.Endpoints.FetchEndpoint; endpoint.IsSet() {
-		entity.AddFetchEndpoint(endpoint, subordinateStorage)
+		lh.AddFetchEndpoint(endpoint, subordinateStorage)
 	}
 	if endpoint := c.Endpoints.ListEndpoint; endpoint.IsSet() {
-		entity.AddSubordinateListingEndpoint(endpoint, subordinateStorage, trustMarkedEntitiesStorage)
+		lh.AddSubordinateListingEndpoint(endpoint, subordinateStorage, trustMarkedEntitiesStorage)
 	}
 	if endpoint := c.Endpoints.ResolveEndpoint; endpoint.IsSet() {
-		entity.AddResolveEndpoint(endpoint)
+		lh.AddResolveEndpoint(endpoint)
 	}
 	if endpoint := c.Endpoints.TrustMarkStatusEndpoint; endpoint.IsSet() {
-		entity.AddTrustMarkStatusEndpoint(endpoint, trustMarkedEntitiesStorage)
+		lh.AddTrustMarkStatusEndpoint(endpoint, trustMarkedEntitiesStorage)
 	}
 	if endpoint := c.Endpoints.TrustMarkedEntitiesListingEndpoint; endpoint.IsSet() {
-		entity.AddTrustMarkedEntitiesListingEndpoint(endpoint, trustMarkedEntitiesStorage)
+		lh.AddTrustMarkedEntitiesListingEndpoint(endpoint, trustMarkedEntitiesStorage)
 	}
 	if endpoint := c.Endpoints.TrustMarkEndpoint; endpoint.IsSet() {
-		entity.AddTrustMarkEndpoint(endpoint, trustMarkedEntitiesStorage, trustMarkCheckerMap)
+		lh.AddTrustMarkEndpoint(endpoint.EndpointConf, trustMarkedEntitiesStorage, trustMarkCheckerMap)
 	}
 	if endpoint := c.Endpoints.TrustMarkRequestEndpoint; endpoint.IsSet() {
-		entity.AddTrustMarkRequestEndpoint(endpoint, trustMarkedEntitiesStorage)
+		lh.AddTrustMarkRequestEndpoint(endpoint, trustMarkedEntitiesStorage)
 	}
 	if endpoint := c.Endpoints.EnrollmentEndpoint; endpoint.IsSet() {
 		var checker lighthouse.EntityChecker
@@ -112,22 +115,15 @@ func main() {
 				panic(err)
 			}
 		}
-		entity.AddEnrollEndpoint(endpoint.EndpointConf, subordinateStorage, checker)
+		lh.AddEnrollEndpoint(endpoint.EndpointConf, subordinateStorage, checker)
 	}
 	if endpoint := c.Endpoints.EnrollmentRequestEndpoint; endpoint.IsSet() {
-		entity.AddEnrollRequestEndpoint(endpoint, subordinateStorage)
+		lh.AddEnrollRequestEndpoint(endpoint, subordinateStorage)
 	}
 	if endpoint := c.Endpoints.EntityCollectionEndpoint; endpoint.IsSet() {
-		entity.AddEntityCollectionEndpoint(endpoint)
+		lh.AddEntityCollectionEndpoint(endpoint)
 	}
-	log.Println("Added Endpoints")
+	log.Info("Added Endpoints")
 
-	log.Printf("Start serving on port %d\n", c.ServerPort)
-	if err = http.ListenAndServe(fmt.Sprintf(":%d", c.ServerPort), entity.HttpHandlerFunc()); err != nil {
-		panic(err)
-	}
-	// if err = entity.Listen(fmt.Sprintf(":%d", c.ServerPort)); err != nil {
-	// 	panic(err)
-	// }
-
+	lh.Start(config.Get().Server)
 }

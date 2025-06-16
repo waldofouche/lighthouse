@@ -29,7 +29,7 @@ func loadConfig() error {
 	c := config.Get()
 
 	var err error
-	subordinateStorage, trustMarkedEntitiesStorage, err = config.LoadStorageBackends(c)
+	subordinateStorage, trustMarkedEntitiesStorage, err = config.LoadStorageBackends(c.Storage)
 	if err != nil {
 		log.Fatal(err)
 	}

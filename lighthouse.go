@@ -2,9 +2,10 @@ package lighthouse
 
 import (
 	"crypto"
-	"log"
+	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-oidfed/lib/oidfedconst"
@@ -13,13 +14,15 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/lestrrat-go/jwx/v3/jwa"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/go-oidfed/lib"
 	"github.com/go-oidfed/lib/cache"
 	"github.com/go-oidfed/lib/unixtime"
 
-	"github.com/go-oidfed/lighthouse/internal"
+	"github.com/go-oidfed/lighthouse/internal/utils"
 	"github.com/go-oidfed/lighthouse/storage"
 )
 
@@ -66,6 +69,17 @@ type SubordinateStatementsConfig struct {
 	Extra                        map[string]any
 }
 
+// The fiber.Config that is used to init the http fiber.App
+var FiberServerConfig = fiber.Config{
+	ReadTimeout:    3 * time.Second,
+	WriteTimeout:   20 * time.Second,
+	IdleTimeout:    150 * time.Second,
+	ReadBufferSize: 8192,
+	// WriteBufferSize: 4096,
+	ErrorHandler: handleError,
+	Network:      "tcp",
+}
+
 // NewLightHouse creates a new LightHouse
 func NewLightHouse(
 	entityID string, authorityHints []string, metadata *oidfed.Metadata,
@@ -88,10 +102,11 @@ func NewLightHouse(
 	if fed.Metadata.FederationEntity == nil {
 		fed.Metadata.FederationEntity = &oidfed.FederationEntityMetadata{}
 	}
-	server := fiber.New()
+	server := fiber.New(FiberServerConfig)
 	server.Use(recover.New())
 	server.Use(compress.New())
 	server.Use(logger.New())
+	server.Use(requestid.New())
 	entity := &LightHouse{
 		FederationEntity:            fed,
 		TrustMarkIssuer:             oidfed.NewTrustMarkIssuer(entityID, generalSigner.TrustMarkSigner(), nil),
@@ -138,6 +153,33 @@ func (fed LightHouse) Listen(addr string) error {
 	return fed.server.Listen(addr)
 }
 
+func (fed LightHouse) Start(conf ServerConf) {
+	if !conf.TLS.Enabled {
+		log.WithField("port", conf.Port).Info("TLS is disabled starting http server")
+		log.WithError(fed.server.Listen(fmt.Sprintf(":%d", conf.Port))).Fatal()
+	}
+	// TLS enabled
+	if conf.TLS.RedirectHTTP {
+		httpServer := fiber.New(FiberServerConfig)
+		httpServer.All(
+			"*", func(ctx *fiber.Ctx) error {
+				//goland:noinspection HttpUrlsUsage
+				return ctx.Redirect(
+					strings.Replace(ctx.Request().URI().String(), "http://", "https://", 1),
+					fiber.StatusPermanentRedirect,
+				)
+			},
+		)
+		log.Info("TLS and http redirect enabled, starting redirect server on port 80")
+		go func() {
+			log.WithError(httpServer.Listen(":80")).Fatal()
+		}()
+	}
+	time.Sleep(time.Millisecond) // This is just for a more pretty output with the tls header printed after the http one
+	log.Info("TLS enabled, starting https server on port 443")
+	log.WithError(fed.server.ListenTLS(":443", conf.TLS.Cert, conf.TLS.Key)).Fatal()
+}
+
 // CreateSubordinateStatement returns a oidfed.EntityStatementPayload for the passed storage.SubordinateInfo
 func (fed LightHouse) CreateSubordinateStatement(subordinate *storage.SubordinateInfo) oidfed.EntityStatementPayload {
 	now := time.Now()
@@ -154,6 +196,6 @@ func (fed LightHouse) CreateSubordinateStatement(subordinate *storage.Subordinat
 		CriticalExtensions: fed.CriticalExtensions,
 		MetadataPolicyCrit: fed.MetadataPolicyCrit,
 		TrustMarks:         subordinate.TrustMarks,
-		Extra:              internal.MergeMaps(true, fed.Extra, subordinate.Extra),
+		Extra:              utils.MergeMaps(true, fed.Extra, subordinate.Extra),
 	}
 }
