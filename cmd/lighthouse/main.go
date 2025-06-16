@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/go-oidfed/lib"
-	"github.com/lestrrat-go/jwx/v3/jwa"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/go-oidfed/lighthouse"
@@ -26,7 +25,7 @@ func main() {
 	for _, tmc := range c.Federation.TrustMarks {
 		if err := tmc.Verify(
 			c.Federation.EntityID, c.Endpoints.TrustMarkEndpoint.ValidateURL(c.Federation.EntityID),
-			oidfed.NewTrustMarkSigner(signingKey, jwa.ES512()),
+			oidfed.NewTrustMarkSigner(signingKey, c.Signing.Algorithm),
 		); err != nil {
 			log.Fatal(err)
 		}
@@ -45,7 +44,7 @@ func main() {
 				LogoURI:          c.Federation.LogoURI,
 			},
 		},
-		signingKey, jwa.ES512(), c.Federation.ConfigurationLifetime, lighthouse.SubordinateStatementsConfig{
+		signingKey, c.Signing.Algorithm, c.Federation.ConfigurationLifetime, lighthouse.SubordinateStatementsConfig{
 			MetadataPolicies:             nil,
 			SubordinateStatementLifetime: 3600,
 			// TODO read all of this from config or a storage backend

@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/go-oidfed/lighthouse"
@@ -24,18 +25,22 @@ type configValidator interface {
 	validate() error
 }
 
-// Validate checks all fields of Config that implement configValidator
+// Validate checks all fields of Config that implement configValidator (pointer receivers)
 func (c *Config) Validate() error {
 	v := reflect.ValueOf(c).Elem()
+	t := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
 		fieldVal := v.Field(i)
-		fieldIface := fieldVal.Interface()
 
-		validator, ok := fieldIface.(configValidator)
-		if ok {
-			if err := validator.validate(); err != nil {
-				return err
+		// Get addressable pointer to field if possible
+		if fieldVal.CanAddr() {
+			ptr := fieldVal.Addr().Interface()
+
+			if validator, ok := ptr.(configValidator); ok {
+				if err := validator.validate(); err != nil {
+					return errors.Errorf("validation failed for field '%s': %w", t.Field(i).Name, err)
+				}
 			}
 		}
 	}
