@@ -136,7 +136,7 @@ func manageTrustMarkRequests(cmd *cobra.Command, _ []string) error {
 	if trustMarkType != "" {
 		return manageTrustMarkRequestsForID(trustMarkType)
 	}
-	for _, c := range config.Get().TrustMarkSpecs {
+	for _, c := range config.Get().Endpoints.TrustMarkEndpoint.TrustMarkSpecs {
 		if err := manageTrustMarkRequestsForID(c.TrustMarkType); err != nil {
 			return err
 		}

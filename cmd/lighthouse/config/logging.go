@@ -52,3 +52,9 @@ func (log *loggingConf) validate() error {
 	}
 	return nil
 }
+
+var defaultLoggingConf = loggingConf{
+	Internal: internalLoggerConf{
+		Level: "INFO",
+	},
+}

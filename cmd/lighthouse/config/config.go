@@ -44,7 +44,7 @@ func (c *Config) Validate() error {
 
 var c = Config{
 	Server:     defaultServerConf,
-	Logging:    loggingConf{},
+	Logging:    defaultLoggingConf,
 	Storage:    storageConf{},
 	Signing:    defaultSigningConf,
 	Endpoints:  Endpoints{},

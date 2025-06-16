@@ -57,6 +57,12 @@ func (w *exchangeableWriter) SetOutput(out io.Writer) {
 	w.Writer = out
 }
 
+type nullWriter struct{}
+
+func (nullWriter) Write([]byte) (n int, err error) {
+	return 0, nil
+}
+
 func mustGetLogWriter(logConf config.LoggerConf, logfileName string) io.Writer {
 	var loggers []io.Writer
 	if logConf.StdErr {
@@ -67,7 +73,7 @@ func mustGetLogWriter(logConf config.LoggerConf, logfileName string) io.Writer {
 	}
 	switch len(loggers) {
 	case 0:
-		return nil
+		return nullWriter{}
 	case 1:
 		return loggers[0]
 	default:
