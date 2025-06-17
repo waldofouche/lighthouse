@@ -26,8 +26,6 @@ type federationConf struct {
 	ExtraEntityConfigurationData map[string]any                               `yaml:"extra_entity_configuration_data"`
 
 	ConfigurationLifetime int64 `yaml:"configuration_lifetime"`
-
-	UseResolveEndpoint bool `yaml:"use_resolve_endpoint"` //TODO move somewhere else
 }
 
 type federationMetadataConf struct {

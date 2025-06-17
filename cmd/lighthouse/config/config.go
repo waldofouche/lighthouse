@@ -52,7 +52,7 @@ var c = Config{
 	Logging:    defaultLoggingConf,
 	Storage:    defaultStorageConf,
 	Signing:    defaultSigningConf,
-	Endpoints:  Endpoints{},
+	Endpoints:  defaultEndpointConf,
 	Federation: defaultFederationConf,
 }
 

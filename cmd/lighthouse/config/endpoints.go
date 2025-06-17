@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"github.com/fatih/structs"
 	oidfed "github.com/go-oidfed/lib"
 	"github.com/pkg/errors"
@@ -12,23 +14,34 @@ import (
 
 // Endpoints holds configuration for the different possible endpoints
 type Endpoints struct {
-	FetchEndpoint                      lighthouse.EndpointConf `yaml:"fetch"`
+	FetchEndpoint                      fetchEndpointConf       `yaml:"fetch"`
 	ListEndpoint                       lighthouse.EndpointConf `yaml:"list"`
-	ResolveEndpoint                    lighthouse.EndpointConf `yaml:"resolve"`
+	ResolveEndpoint                    resolveEndpointConf     `yaml:"resolve"`
 	TrustMarkStatusEndpoint            lighthouse.EndpointConf `yaml:"trust_mark_status"`
 	TrustMarkedEntitiesListingEndpoint lighthouse.EndpointConf `yaml:"trust_mark_list"`
 	TrustMarkEndpoint                  trustMarkEndpointConf   `yaml:"trust_mark"`
 	HistoricalKeysEndpoint             lighthouse.EndpointConf `yaml:"historical_keys"`
 
-	EnrollmentEndpoint        extendedEndpointConfig  `yaml:"enroll"`
+	EnrollmentEndpoint        checkedEndpointConf     `yaml:"enroll"`
 	EnrollmentRequestEndpoint lighthouse.EndpointConf `yaml:"enroll_request"`
 	TrustMarkRequestEndpoint  lighthouse.EndpointConf `yaml:"trust_mark_request"`
 	EntityCollectionEndpoint  lighthouse.EndpointConf `yaml:"entity_collection"`
 }
 
-type extendedEndpointConfig struct {
+type checkedEndpointConf struct {
 	lighthouse.EndpointConf `yaml:",inline"`
 	CheckerConfig           lighthouse.EntityCheckerConfig `yaml:"checker"`
+}
+
+type fetchEndpointConf struct {
+	lighthouse.EndpointConf `yaml:",inline"`
+	StatementLifetime       int64 `yaml:"statement_lifetime"`
+}
+
+type resolveEndpointConf struct {
+	lighthouse.EndpointConf `yaml:",inline"`
+	GracePeriod             int64   `yaml:"grace_period"`
+	TimeElapsedGraceFactor  float64 `yaml:"time_elapsed_grace_factor"`
 }
 
 type trustMarkEndpointConf struct {
@@ -75,5 +88,21 @@ func (e *extendedTrustMarkSpec) UnmarshalYAML(node *yaml.Node) error {
 	e.TrustMarkSpec = mm
 	e.CheckerConfig = fc.CheckerConfig
 	e.IncludeExtraClaimsInInfo = true
+	return nil
+}
+
+var defaultEndpointConf = Endpoints{
+	FetchEndpoint: fetchEndpointConf{
+		StatementLifetime: 600000,
+	},
+	ResolveEndpoint: resolveEndpointConf{
+		GracePeriod:            86400,
+		TimeElapsedGraceFactor: 0.5,
+	},
+}
+
+func (e *Endpoints) verify() error {
+	oidfed.ResolverCacheGracePeriod = time.Duration(e.ResolveEndpoint.GracePeriod) * time.Second
+	oidfed.ResolverCacheLifetimeElapsedGraceFactor = e.ResolveEndpoint.TimeElapsedGraceFactor
 	return nil
 }

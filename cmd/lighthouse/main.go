@@ -54,7 +54,7 @@ func main() {
 		},
 		signingKey, c.Signing.Algorithm, c.Federation.ConfigurationLifetime, lighthouse.SubordinateStatementsConfig{
 			MetadataPolicies:             nil,
-			SubordinateStatementLifetime: 3600,
+			SubordinateStatementLifetime: c.Endpoints.FetchEndpoint.StatementLifetime,
 			// TODO read all of this from config or a storage backend
 		}, c.Federation.ExtraEntityConfigurationData,
 	)
@@ -95,13 +95,13 @@ func main() {
 	log.Println("Initialized Entity")
 
 	if endpoint := c.Endpoints.FetchEndpoint; endpoint.IsSet() {
-		lh.AddFetchEndpoint(endpoint, subordinateStorage)
+		lh.AddFetchEndpoint(endpoint.EndpointConf, subordinateStorage)
 	}
 	if endpoint := c.Endpoints.ListEndpoint; endpoint.IsSet() {
 		lh.AddSubordinateListingEndpoint(endpoint, subordinateStorage, trustMarkedEntitiesStorage)
 	}
 	if endpoint := c.Endpoints.ResolveEndpoint; endpoint.IsSet() {
-		lh.AddResolveEndpoint(endpoint)
+		lh.AddResolveEndpoint(endpoint.EndpointConf)
 	}
 	if endpoint := c.Endpoints.TrustMarkStatusEndpoint; endpoint.IsSet() {
 		lh.AddTrustMarkStatusEndpoint(endpoint, trustMarkedEntitiesStorage)

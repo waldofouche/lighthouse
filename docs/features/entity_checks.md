@@ -15,7 +15,7 @@ box by LightHouse:
 - [`trust_path`](#trust-path): Checks if there is a valid trust path from the entity to the defined Trust Anchor
 - [`authority_hints`](#authority-hints): Checks if the entity's published
   `authority_hints` contain the defined Entity ID
-- [`entity_id`](#entity-id): Checks if the entity's `entity_id` is one of the 
+- [`entity_id`](#entity-ids): Checks if the entity's `entity_id` is one of the 
   defined ones
 - [`multiple_and`](#multiple): Used to combine multiple `EntityChecker` 
   using AND
