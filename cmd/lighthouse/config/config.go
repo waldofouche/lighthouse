@@ -39,7 +39,7 @@ func (c *Config) Validate() error {
 
 			if validator, ok := ptr.(configValidator); ok {
 				if err := validator.validate(); err != nil {
-					return errors.Errorf("validation failed for field '%s': %w", t.Field(i).Name, err)
+					return errors.Errorf("validation failed for field '%s': %s", t.Field(i).Name, err.Error())
 				}
 			}
 		}
