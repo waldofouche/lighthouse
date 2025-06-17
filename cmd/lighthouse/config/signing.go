@@ -8,7 +8,7 @@ import (
 type signingConf struct {
 	Alg                  string                 `yaml:"alg"`
 	Algorithm            jwa.SignatureAlgorithm `yaml:"-"`
-	RSAKeyLen            int                    `yaml:"rsa_keylen"`
+	RSAKeyLen            int                    `yaml:"rsa_key_len"`
 	KeyFile              string                 `yaml:"key_file"`
 	KeyDir               string                 `yaml:"key_dir"`
 	AutomaticKeyRollover rolloverConf           `yaml:"automatic_key_rollover"`
