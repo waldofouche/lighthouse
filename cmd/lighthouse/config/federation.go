@@ -11,22 +11,36 @@ import (
 )
 
 type federationConf struct {
-	EntityID           string              `yaml:"entity_id"`
-	ClientName         string              `yaml:"client_name"`
-	LogoURI            string              `yaml:"logo_uri"`
-	Scopes             []string            `yaml:"scopes"`
-	TrustAnchors       oidfed.TrustAnchors `yaml:"trust_anchors"`
-	AuthorityHints     []string            `yaml:"authority_hints"`
-	OrganizationName   string              `yaml:"organization_name"`
-	KeyStorage         string              `yaml:"key_storage"`
-	UseResolveEndpoint bool                `yaml:"use_resolve_endpoint"`
+	EntityID                     string                                       `yaml:"entity_id"`
+	TrustAnchors                 oidfed.TrustAnchors                          `yaml:"trust_anchors"`
+	AuthorityHints               []string                                     `yaml:"authority_hints"`
+	Metadata                     federationMetadataConf                       `yaml:"federation_entity_metadata"`
+	MetadataPolicyFile           string                                       `yaml:"metadata_policy_file"`
+	MetadataPolicy               *oidfed.MetadataPolicies                     `yaml:"-"`
+	Constraints                  *oidfed.ConstraintSpecification              `json:"constraints,omitempty"`
+	CriticalExtensions           []string                                     `json:"crit,omitempty"`
+	MetadataPolicyCrit           []oidfed.PolicyOperatorName                  `json:"metadata_policy_crit,omitempty"`
+	TrustMarks                   []*oidfed.EntityConfigurationTrustMarkConfig `yaml:"trust_marks"`
+	TrustMarkIssuers             oidfed.AllowedTrustMarkIssuers               `yaml:"trust_mark_issuers"`
+	TrustMarkOwners              oidfed.TrustMarkOwners                       `yaml:"trust_mark_owners"`
+	ExtraEntityConfigurationData map[string]any                               `yaml:"extra_entity_configuration_data"`
 
-	MetadataPolicyFile    string                                       `yaml:"metadata_policy_file"`
-	MetadataPolicy        *oidfed.MetadataPolicies                     `yaml:"-"`
-	TrustMarks            []*oidfed.EntityConfigurationTrustMarkConfig `yaml:"trust_marks"`
-	TrustMarkIssuers      oidfed.AllowedTrustMarkIssuers               `yaml:"trust_mark_issuers"`
-	TrustMarkOwners       oidfed.TrustMarkOwners                       `yaml:"trust_mark_owners"`
-	ConfigurationLifetime int64                                        `yaml:"configuration_lifetime"`
+	ConfigurationLifetime int64 `yaml:"configuration_lifetime"`
+
+	UseResolveEndpoint bool `yaml:"use_resolve_endpoint"` //TODO move somewhere else
+}
+
+type federationMetadataConf struct {
+	DisplayName                   string         `yaml:"display_name"`
+	Description                   string         `yaml:"description"`
+	Keywords                      []string       `yaml:"keywords"`
+	Contacts                      []string       `yaml:"contacts"`
+	LogoURI                       string         `yaml:"logo_uri"`
+	PolicyURI                     string         `yaml:"policy_uri"`
+	InformationURI                string         `yaml:"information_uri"`
+	OrganizationName              string         `yaml:"organization_name"`
+	OrganizationURI               string         `yaml:"organization_uri"`
+	ExtraFederationEntityMetadata map[string]any `yaml:"extra"`
 }
 
 var defaultFederationConf = federationConf{

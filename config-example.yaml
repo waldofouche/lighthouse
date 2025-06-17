@@ -2,11 +2,13 @@ server:
   port: 7672
 signing:
   key_file: "/signing.key"
-federation:
+federation_data:
   entity_id: "https://ta.example.lh"
   authority_hints:
     - "https://trust-anchor.spid-cie.fedservice.lh/"
-  organization_name: "GO oidc-fed Intermediate"
+  federation_entity_metadata:
+    display_name: "Example Federation TA"
+    organization_name: "Example Organization"
   metadata_policy_file: "/metadata-policy.json"
 storage:
   data_dir: "/data"

@@ -40,26 +40,35 @@ func main() {
 		c.Federation.EntityID, c.Federation.AuthorityHints,
 		&oidfed.Metadata{
 			FederationEntity: &oidfed.FederationEntityMetadata{
-				OrganizationName: c.Federation.OrganizationName,
-				LogoURI:          c.Federation.LogoURI,
+				Extra:            c.Federation.Metadata.ExtraFederationEntityMetadata,
+				DisplayName:      c.Federation.Metadata.DisplayName,
+				Description:      c.Federation.Metadata.Description,
+				Keywords:         c.Federation.Metadata.Keywords,
+				Contacts:         c.Federation.Metadata.Contacts,
+				LogoURI:          c.Federation.Metadata.LogoURI,
+				PolicyURI:        c.Federation.Metadata.PolicyURI,
+				InformationURI:   c.Federation.Metadata.InformationURI,
+				OrganizationName: c.Federation.Metadata.OrganizationName,
+				OrganizationURI:  c.Federation.Metadata.OrganizationURI,
 			},
 		},
 		signingKey, c.Signing.Algorithm, c.Federation.ConfigurationLifetime, lighthouse.SubordinateStatementsConfig{
 			MetadataPolicies:             nil,
 			SubordinateStatementLifetime: 3600,
 			// TODO read all of this from config or a storage backend
-		}, nil,
+		}, c.Federation.ExtraEntityConfigurationData,
 	)
 	if err != nil {
 		panic(err)
 	}
 
 	lh.MetadataPolicies = c.Federation.MetadataPolicy
-	// TODO other constraints etc.
-
+	lh.Constraints = c.Federation.Constraints
+	lh.CriticalExtensions = c.Federation.CriticalExtensions
+	lh.MetadataPolicyCrit = c.Federation.MetadataPolicyCrit
+	lh.TrustMarks = c.Federation.TrustMarks
 	lh.TrustMarkIssuers = c.Federation.TrustMarkIssuers
 	lh.TrustMarkOwners = c.Federation.TrustMarkOwners
-	lh.TrustMarks = c.Federation.TrustMarks
 
 	var trustMarkCheckerMap map[string]lighthouse.EntityChecker
 	if specLen := len(c.Endpoints.TrustMarkEndpoint.TrustMarkSpecs); specLen > 0 {

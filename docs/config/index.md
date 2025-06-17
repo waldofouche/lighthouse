@@ -25,7 +25,9 @@ The following is an example `config.yaml` file:
         entity_id: "https://ta.example.lh"
         authority_hints:
             - "https://trust-anchor.spid-cie.fedservice.lh/"
-        organization_name: "GO oidc-fed Intermediate"
+        federation_entity_metadata:
+            display_name: "Example Federation TA"
+            organization_name: "Example Organization"
         metadata_policy_file: "/metadata-policy.json"
         trust_mark_issuers:
             "https://go-ia.federservice.lh/tm/federation-member":
