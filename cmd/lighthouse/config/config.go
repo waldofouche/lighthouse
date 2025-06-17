@@ -50,7 +50,7 @@ func (c *Config) Validate() error {
 var c = Config{
 	Server:     defaultServerConf,
 	Logging:    defaultLoggingConf,
-	Storage:    storageConf{},
+	Storage:    defaultStorageConf,
 	Signing:    defaultSigningConf,
 	Endpoints:  Endpoints{},
 	Federation: defaultFederationConf,

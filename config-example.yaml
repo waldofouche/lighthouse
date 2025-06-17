@@ -9,7 +9,7 @@ federation:
   organization_name: "GO oidc-fed Intermediate"
   metadata_policy_file: "/metadata-policy.json"
 storage:
-  data_location: "/data"
+  data_dir: "/data"
   human_readable_storage: true
 endpoints:
   fetch:
