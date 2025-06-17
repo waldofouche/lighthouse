@@ -19,7 +19,7 @@ func (fed *LightHouse) AddTrustMarkRequestEndpoint(
 	if fed.Metadata.FederationEntity.Extra == nil {
 		fed.Metadata.FederationEntity.Extra = make(map[string]interface{})
 	}
-	fed.Metadata.FederationEntity.Extra["trust_mark_request"] = endpoint.ValidateURL(fed.FederationEntity.EntityID)
+	fed.Metadata.FederationEntity.Extra["federation_trust_mark_request_endpoint"] = endpoint.ValidateURL(fed.FederationEntity.EntityID)
 	if endpoint.Path == "" {
 		return
 	}
