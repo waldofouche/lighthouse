@@ -74,7 +74,7 @@ lighthouse/
         federation_entity_metadata:
             display_name: "Example Federation TA"
             organization_name: "Example Organization"
-            metadata_policy_file: "/data/metadata-policy.json"
+        metadata_policy_file: "/data/metadata-policy.json"
     storage:
         backend: badger
         data_dir: "/data/storage"
