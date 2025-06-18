@@ -11,8 +11,8 @@ federation_data:
     organization_name: "Example Organization"
   metadata_policy_file: "/metadata-policy.json"
 storage:
+  backend: json
   data_dir: "/data"
-  human_readable_storage: true
 endpoints:
   fetch:
     path: "/fetch"

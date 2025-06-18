@@ -40,8 +40,8 @@ The following is an example `config.yaml` file:
               trust_mark: "eyJhbGciOiJFUzUxMiIsImtpZCI6InpFLTlhVlhJanJZOUcxVU0tYURQVkxVR1RkWmFuOTk0NlJJUWhraWFjUVkiLCJ0eXAiOiJ0cnVzdC1tYXJrK2p3dCJ9.eyJleHAiO..."
               refresh: true
     storage:
+        backend: json
         data_dir: "/data"
-        human_readable_storage: true
     endpoints:
         fetch:
             path: "/fetch"
