@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	configFile := "config.yaml"
+	var configFile string
 	if len(os.Args) > 1 {
 		configFile = os.Args[1]
 	}

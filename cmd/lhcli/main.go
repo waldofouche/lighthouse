@@ -21,9 +21,6 @@ var subordinateStorage storage.SubordinateStorageBackend
 var trustMarkedEntitiesStorage storage.TrustMarkedEntitiesStorageBackend
 
 func loadConfig() error {
-	if configFile == "" {
-		configFile = "config.yaml"
-	}
 	config.Load(configFile)
 	log.Println("Loaded Config")
 	c := config.Get()

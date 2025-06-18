@@ -2,13 +2,13 @@ package config
 
 import (
 	"log"
-	"os"
 	"reflect"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/go-oidfed/lighthouse"
+	"github.com/go-oidfed/lighthouse/internal/utils/fileutils"
 )
 
 // Config holds configuration for the entity
@@ -61,9 +61,26 @@ func Get() Config {
 	return c
 }
 
+var possibleConfigLocations = []string{
+	".",
+	"config",
+	"/config",
+	"/lighthouse/config",
+	"/lighthouse",
+	"/data/config",
+	"/data",
+	"/etc/lighthouse",
+}
+
 // Load loads the config from the given file
 func Load(filename string) {
-	content, err := os.ReadFile(filename)
+	var content []byte
+	var err error
+	if filename != "" {
+		content, err = fileutils.ReadFile(filename)
+	} else {
+		content, _ = mustReadConfigFile("config.yaml", possibleConfigLocations)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,5 +90,4 @@ func Load(filename string) {
 	if err = c.Validate(); err != nil {
 		log.Fatal(err)
 	}
-
 }
