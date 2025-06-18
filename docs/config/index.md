@@ -7,6 +7,13 @@ LightHouse will search for this file at startup at different locations, the
 first file that is found will be used. Supported locations are:
 
 - `config.yaml`
+- `config/config.yaml`
+- `/config/config.yaml`
+- `/lighthouse/config/config.yaml`
+- `/lighthouse/config.yaml`
+- `/data/config/config.yaml`
+- `/data/config.yaml`
+- `/etc/lighthouse/config.yaml`
 
 ## Example Config File
 The following is an example `config.yaml` file:
