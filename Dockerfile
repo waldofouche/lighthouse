@@ -14,4 +14,4 @@ RUN apt-get update && apt-get install -y ca-certificates && apt-get autoremove -
 COPY --from=builder /lighthouse .
 COPY --from=builder /lhcli .
 
-CMD bash -c "update-ca-certificates && /lighthouse /data/config.yaml"
+CMD bash -c "update-ca-certificates && /lighthouse"
