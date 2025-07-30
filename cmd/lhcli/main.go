@@ -10,9 +10,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "tacli",
-	Short: "tacli can help you manage your TA",
-	Long:  "tacli can help you manage your TA or IA",
+	Use:   "lhcli",
+	Short: "lhcli can help you manage your LightHouse",
+	Long:  "lhcli can help you manage your LightHouse",
 	RunE:  rootRunE,
 }
 
