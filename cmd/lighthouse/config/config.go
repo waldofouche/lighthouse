@@ -44,6 +44,9 @@ func (c *Config) Validate() error {
 			}
 		}
 	}
+	if c.Signing.AutomaticKeyRollover.Interval < c.Federation.ConfigurationLifetime {
+		c.Signing.AutomaticKeyRollover.Interval = c.Federation.ConfigurationLifetime
+	}
 	return nil
 }
 

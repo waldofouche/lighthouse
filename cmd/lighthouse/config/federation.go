@@ -2,10 +2,12 @@ package config
 
 import (
 	"encoding/json"
+	"time"
 
 	oidfed "github.com/go-oidfed/lib"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/zachmann/go-utils/duration"
 
 	"github.com/go-oidfed/lighthouse/internal/utils/fileutils"
 )
@@ -25,7 +27,7 @@ type federationConf struct {
 	TrustMarkOwners              oidfed.TrustMarkOwners                       `yaml:"trust_mark_owners"`
 	ExtraEntityConfigurationData map[string]any                               `yaml:"extra_entity_configuration_data"`
 
-	ConfigurationLifetime int64 `yaml:"configuration_lifetime"`
+	ConfigurationLifetime duration.DurationOption `yaml:"configuration_lifetime"`
 }
 
 type federationMetadataConf struct {
@@ -42,7 +44,7 @@ type federationMetadataConf struct {
 }
 
 var defaultFederationConf = federationConf{
-	ConfigurationLifetime: 24 * 3600,
+	ConfigurationLifetime: duration.DurationOption(24 * time.Hour),
 }
 
 func (c *federationConf) validate() error {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/go-oidfed/lib/jwx"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/pkg/errors"
 )
@@ -11,37 +12,36 @@ type signingConf struct {
 	RSAKeyLen            int                    `yaml:"rsa_key_len"`
 	KeyFile              string                 `yaml:"key_file"`
 	KeyDir               string                 `yaml:"key_dir"`
-	AutomaticKeyRollover rolloverConf           `yaml:"automatic_key_rollover"`
-}
-
-type rolloverConf struct {
-	Enabled  bool  `yaml:"enabled"`
-	Interval int64 `yaml:"interval"`
+	AutomaticKeyRollover jwx.RolloverConf       `yaml:"automatic_key_rollover"`
 }
 
 var defaultSigningConf = signingConf{
 	Alg:       "ES512",
 	RSAKeyLen: 2048,
-	AutomaticKeyRollover: rolloverConf{
-		Enabled:  false,
-		Interval: 600000,
+	AutomaticKeyRollover: jwx.RolloverConf{
+		Enabled:                   false,
+		Interval:                  600000,
+		NumberOfOldKeysKeptInJWKS: 1,
 	},
 }
 
 func (c *signingConf) validate() error {
-	if c.KeyFile == "" && c.KeyDir == "" {
-		return errors.New("error in signing conf: either key_file or key_dir must be specified")
-	}
-	if c.AutomaticKeyRollover.Enabled && c.KeyDir == "" {
+	if c.KeyFile != "" {
 		return errors.New(
-			"error in signing conf: if automatic_key_rollover" +
-				" is enabled, key_dir must be specified, not key_file",
+			"'signing.key_file' is deprecated, " +
+				"use 'signing.key_dir' instead\nTo keep the existing signing key" +
+				" place it in the 'signing.key_dir' directory (" +
+				"if not already the case) and rename it to the following naming" +
+				" scheme:\nfederation_<alg>.pem\nExample: federation_ES512.pem",
 		)
+	}
+	if c.KeyDir == "" {
+		return errors.New("error in signing conf: key_dir must be specified")
 	}
 	var ok bool
 	c.Algorithm, ok = jwa.LookupSignatureAlgorithm(c.Alg)
 	if !ok {
-		return errors.New("error in signing conf: unknown algorithm: " + c.Alg)
+		return errors.New("error in signing conf: unknown algorithm " + c.Alg)
 	}
 	return nil
 }

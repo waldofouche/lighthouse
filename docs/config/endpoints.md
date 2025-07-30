@@ -43,12 +43,12 @@ in the Entity Configuration. This option is usually not set. There are two cases
 - To use an external Endpoint.
 
 ### `statement_lifetime`
-<span class="badge badge-purple" title="Value Type">integer</span>
-<span class="badge badge-blue" title="Default Value">600000</span>
+<span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
+<span class="badge badge-blue" title="Default Value">600000 seconds</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
 
-The `statement_lifetime` option sets the lifetime of the issued Entity Statements. The time is given in seconds. The 
-default is a bit less than one week.
+The `statement_lifetime` option sets the lifetime of the issued Entity Statements.
+The default is a bit less than one week.
 
 ## `list`
 Under the `list` option the Federation Subordinate Listing Endpoint is configured.
@@ -95,7 +95,7 @@ This endpoint is generally optional. However, if LightHouse should serve as a Re
     endpoints:
         resolve:
             path: /resolve
-            grace_period: 3600
+            grace_period: 1h
             time_elapsed_grace_factor: 0.75
     ```
 
@@ -120,8 +120,8 @@ in the Entity Configuration. This option is usually not set. There are two cases
 - To use an external Endpoint.
 
 ### `grace_period`
-<span class="badge badge-purple" title="Value Type">integer</span>
-<span class="badge badge-blue" title="Default Value">86400</span>
+<span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
+<span class="badge badge-blue" title="Default Value">1 hour</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
 
 The `grace_period` option sets a Grace Period for the Resolver Cache.
@@ -161,7 +161,7 @@ This endpoint is required if LightHouse serves as a Trust Mark Issuer.
             path: /trustmark
             trust_mark_specs:
                 - trust_mark_type: https://tm.example.org
-                  lifetime: 86400
+                  lifetime: 1d
                   ref: https://tm.example.org/ref
                   logo_uri: https://tm.example.org/logo
                   extra_claim: foobar
@@ -208,10 +208,10 @@ Each list element has the following configuration options defined:
 The `trust_mark_type` option sets the Trust Mark Type (ID) of the Trust Mark.
 
 #### `lifetime`
-<span class="badge badge-purple" title="Value Type">integer</span>
+<span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
 <span class="badge badge-orange" title="If this option is required or optional">required, if the Trust Mark should expire</span>
 
-The `lifetime` option is used to set the lifetime of each Trust Mark JWT. The time is given in seconds.
+The `lifetime` option is used to set the lifetime of each Trust Mark JWT.
 
 #### `ref`
 <span class="badge badge-purple" title="Value Type">uri</span>

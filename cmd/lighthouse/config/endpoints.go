@@ -6,6 +6,7 @@ import (
 	"github.com/fatih/structs"
 	oidfed "github.com/go-oidfed/lib"
 	"github.com/pkg/errors"
+	"github.com/zachmann/go-utils/duration"
 	"gopkg.in/yaml.v3"
 
 	"github.com/go-oidfed/lighthouse"
@@ -35,13 +36,13 @@ type checkedEndpointConf struct {
 
 type fetchEndpointConf struct {
 	lighthouse.EndpointConf `yaml:",inline"`
-	StatementLifetime       int64 `yaml:"statement_lifetime"`
+	StatementLifetime       duration.DurationOption `yaml:"statement_lifetime"`
 }
 
 type resolveEndpointConf struct {
 	lighthouse.EndpointConf `yaml:",inline"`
-	GracePeriod             int64   `yaml:"grace_period"`
-	TimeElapsedGraceFactor  float64 `yaml:"time_elapsed_grace_factor"`
+	GracePeriod             duration.DurationOption `yaml:"grace_period"`
+	TimeElapsedGraceFactor  float64                 `yaml:"time_elapsed_grace_factor"`
 }
 
 type trustMarkEndpointConf struct {
@@ -93,16 +94,16 @@ func (e *extendedTrustMarkSpec) UnmarshalYAML(node *yaml.Node) error {
 
 var defaultEndpointConf = Endpoints{
 	FetchEndpoint: fetchEndpointConf{
-		StatementLifetime: 600000,
+		StatementLifetime: duration.DurationOption(600000 * time.Second),
 	},
 	ResolveEndpoint: resolveEndpointConf{
-		GracePeriod:            86400,
+		GracePeriod:            duration.DurationOption(time.Hour),
 		TimeElapsedGraceFactor: 0.5,
 	},
 }
 
 func (e *Endpoints) verify() error {
-	oidfed.ResolverCacheGracePeriod = time.Duration(e.ResolveEndpoint.GracePeriod) * time.Second
+	oidfed.ResolverCacheGracePeriod = e.ResolveEndpoint.GracePeriod.Duration()
 	oidfed.ResolverCacheLifetimeElapsedGraceFactor = e.ResolveEndpoint.TimeElapsedGraceFactor
 	return nil
 }

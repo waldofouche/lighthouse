@@ -1,13 +1,13 @@
 package lighthouse
 
 import (
-	"crypto"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/go-oidfed/lib/jwx"
 	"github.com/go-oidfed/lib/oidfedconst"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
@@ -54,7 +54,7 @@ func (c *EndpointConf) ValidateURL(rootURL string) string {
 type LightHouse struct {
 	*oidfed.FederationEntity
 	*oidfed.TrustMarkIssuer
-	*oidfed.GeneralJWTSigner
+	*jwx.GeneralJWTSigner
 	SubordinateStatementsConfig
 	server *fiber.App
 }
@@ -63,7 +63,7 @@ type LightHouse struct {
 // SubordinateStatements issued by this LightHouse
 type SubordinateStatementsConfig struct {
 	MetadataPolicies             *oidfed.MetadataPolicies
-	SubordinateStatementLifetime int64
+	SubordinateStatementLifetime time.Duration
 	Constraints                  *oidfed.ConstraintSpecification
 	CriticalExtensions           []string
 	MetadataPolicyCrit           []oidfed.PolicyOperatorName
@@ -84,7 +84,8 @@ var FiberServerConfig = fiber.Config{
 // NewLightHouse creates a new LightHouse
 func NewLightHouse(
 	entityID string, authorityHints []string, metadata *oidfed.Metadata,
-	privateSigningKey crypto.Signer, signingAlg jwa.SignatureAlgorithm, configurationLifetime int64,
+	signer jwx.VersatileSigner, signingAlg jwa.SignatureAlgorithm,
+	configurationLifetime time.Duration,
 	stmtConfig SubordinateStatementsConfig, extra map[string]any,
 ) (
 	*LightHouse,
@@ -94,7 +95,7 @@ func NewLightHouse(
 		extra = make(map[string]any)
 	}
 	extra["lighthouse_version"] = version.VERSION
-	generalSigner := oidfed.NewGeneralJWTSigner(privateSigningKey, signingAlg)
+	generalSigner := jwx.NewGeneralJWTSigner(signer, []jwa.SignatureAlgorithm{signingAlg})
 	fed, err := oidfed.NewFederationEntity(
 		entityID, authorityHints, metadata, generalSigner.EntityStatementSigner(), configurationLifetime, extra,
 	)
