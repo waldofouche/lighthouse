@@ -121,6 +121,13 @@ func main() {
 	if endpoint := c.Endpoints.TrustMarkRequestEndpoint; endpoint.IsSet() {
 		lh.AddTrustMarkRequestEndpoint(endpoint, trustMarkedEntitiesStorage)
 	}
+	if endpoint := c.Endpoints.HistoricalKeysEndpoint; endpoint.IsSet() {
+		lh.AddHistoricalKeysEndpoint(
+			endpoint, func() jwx.JWKS {
+				return keys.History(jwx.KeyStorageTypeFederation)
+			},
+		)
+	}
 	if endpoint := c.Endpoints.EnrollmentEndpoint; endpoint.IsSet() {
 		var checker lighthouse.EntityChecker
 		if checkerConfig := endpoint.CheckerConfig; checkerConfig.Type != "" {

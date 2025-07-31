@@ -19,9 +19,8 @@ var defaultSigningConf = signingConf{
 	Alg:       "ES512",
 	RSAKeyLen: 2048,
 	AutomaticKeyRollover: jwx.RolloverConf{
-		Enabled:                   false,
-		Interval:                  600000,
-		NumberOfOldKeysKeptInJWKS: 1,
+		Enabled:  false,
+		Interval: 600000,
 	},
 }
 

@@ -375,10 +375,6 @@ Under the `historical_keys` option the Federation Historical Keys Endpoint is co
 
 This endpoint is optional.
 
-!!! warning ":fontawesome-solid-person-digging: NYI"
-
-    This Endpoint is not yet implemented.
-
 ??? file "config.yaml"
 
     ```yaml
