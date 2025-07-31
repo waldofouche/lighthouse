@@ -23,5 +23,5 @@ func initKey() (err error) {
 	if err != nil {
 		return
 	}
-	return
+	return keys.Load()
 }
