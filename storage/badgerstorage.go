@@ -99,7 +99,7 @@ func (store *BadgerSubStorage) Load() error {
 	return store.db.Load()
 }
 func (store *BadgerSubStorage) key(key string) string {
-	return fmt.Sprintf(store.subKey + ":" + key)
+	return store.subKey + ":" + key
 }
 
 // Write writes a values to the sub-database
