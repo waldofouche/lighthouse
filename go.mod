@@ -8,13 +8,14 @@ require (
 	github.com/adam-hanna/arrayOperations v1.0.1
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/fatih/structs v1.1.0
-	github.com/go-oidfed/lib v0.5.1-0.20250731081207-5161f70914fa
+	github.com/go-oidfed/lib v0.6.0
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/lestrrat-go/jwx/v3 v3.0.9
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
+	github.com/zachmann/go-utils v0.0.0-20250730083409-d07980e6b54b
 	gopkg.in/yaml.v3 v3.0.1
 	tideland.dev/go/slices v0.2.0
 )
@@ -56,7 +57,6 @@ require (
 	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	github.com/zachmann/go-utils v0.0.0-20250730083409-d07980e6b54b // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
