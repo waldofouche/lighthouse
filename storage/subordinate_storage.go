@@ -6,7 +6,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/go-oidfed/lib"
-	"github.com/go-oidfed/lib/jwks"
+	"github.com/go-oidfed/lib/jwx"
 )
 
 // Status is a type for holding a status for something that is stored in the
@@ -24,7 +24,7 @@ const (
 
 // SubordinateInfo holds information about a subordinate for storage
 type SubordinateInfo struct {
-	JWKS               jwks.JWKS                       `json:"jwks"`
+	JWKS               jwx.JWKS                        `json:"jwks"`
 	EntityTypes        []string                        `json:"entity_types"`
 	EntityID           string                          `json:"entity_id"`
 	Metadata           *oidfed.Metadata                `json:"metadata,omitempty"`

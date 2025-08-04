@@ -9,29 +9,29 @@ import (
 	"encoding/pem"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/zachmann/go-utils/duration"
 	"gopkg.in/yaml.v3"
 
 	"github.com/go-oidfed/lib"
-	"github.com/go-oidfed/lib/jwks"
+	"github.com/go-oidfed/lib/jwx"
 )
 
 type delegationConfig struct {
 	TrustMarkOwner string                    `yaml:"trust_mark_owner" json:"trust_mark_owner"`
-	JWKS           jwks.JWKS                 `yaml:"jwks" json:"jwks"`
+	JWKS           jwx.JWKS                  `yaml:"jwks" json:"jwks"`
 	SigningKey     string                    `yaml:"signing_key" json:"signing_key"`
 	TrustMarks     []delegationTrustMarkSpec `yaml:"trust_marks" json:"trust_marks"`
 }
 
 type delegationTrustMarkSpec struct {
-	TrustMarkType      string            `yaml:"trust_mark_type" json:"trust_mark_type"`
-	DelegationLifetime int64             `yaml:"delegation_lifetime" json:"delegation_lifetime"`
-	Ref                string            `yaml:"ref" json:"ref"`
-	TrustMarkIssuers   []delegatedEntity `yaml:"trust_mark_issuers" json:"trust_mark_issuers"`
+	TrustMarkType      string                  `yaml:"trust_mark_type" json:"trust_mark_type"`
+	DelegationLifetime duration.DurationOption `yaml:"delegation_lifetime" json:"delegation_lifetime"`
+	Ref                string                  `yaml:"ref" json:"ref"`
+	TrustMarkIssuers   []delegatedEntity       `yaml:"trust_mark_issuers" json:"trust_mark_issuers"`
 }
 
 type delegatedEntity struct {
@@ -86,21 +86,27 @@ func runDelegation(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if conf.JWKS.Set == nil {
-		conf.JWKS = jwks.KeyToJWKS(sk.PublicKey, jwa.ES512())
+		conf.JWKS, err = jwx.KeyToJWKS(sk.PublicKey, jwa.ES512())
+		if err != nil {
+			return errors.Wrap(err, "failed to generate JWKS")
+		}
 	}
 
 	ownedTrustMarks := make([]oidfed.OwnedTrustMark, len(conf.TrustMarks))
 	for i, c := range conf.TrustMarks {
 		ownedTrustMarks[i] = oidfed.OwnedTrustMark{
 			ID:                 c.TrustMarkType,
-			DelegationLifetime: time.Duration(c.DelegationLifetime) * time.Second,
+			DelegationLifetime: c.DelegationLifetime.Duration(),
 			Ref:                c.Ref,
 		}
 	}
 
 	tmo := oidfed.NewTrustMarkOwner(
 		conf.TrustMarkOwner,
-		oidfed.NewGeneralJWTSigner(sk, jwa.ES512()).TrustMarkDelegationSigner(),
+		jwx.NewGeneralJWTSigner(
+			jwx.NewSingleKeyVersatileSigner(sk, jwa.ES512()),
+			[]jwa.SignatureAlgorithm{jwa.ES512()},
+		).TrustMarkDelegationSigner(),
 		ownedTrustMarks,
 	)
 	for i, c := range conf.TrustMarks {

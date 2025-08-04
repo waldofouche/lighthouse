@@ -365,8 +365,8 @@ old one expires, assuring that always a valid Trust Mark JWT is published in
 the Entity Configuration.
 
 ### `min_lifetime`
-<span class="badge badge-purple" title="Value Type">integer</span>
-<span class="badge badge-blue" title="Default Value">10</span>
+<span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
+<span class="badge badge-blue" title="Default Value">10 seconds</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
 
 The `min_lifetime` option is used to set a minimum lifetime in seconds on
@@ -375,12 +375,12 @@ that the Trust Mark JWT published in the Entity Configuration will not
 expire before this lifetime whenever an Entity Configuration is requested.
 
 ### `refresh_grace_period`
-<span class="badge badge-purple" title="Value Type">integer</span>
-<span class="badge badge-blue" title="Default Value">3600</span>
+<span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
+<span class="badge badge-blue" title="Default Value">1 hour</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
 
 The `refresh_grace_period` option is used to set a grace period given in
-seconds. The default grace period is one hour. If [`refresh`](#refresh) is
+seconds. If [`refresh`](#refresh) is
 set to `true`, LightHouse checks if the Trust Mark expires within the defined grace
 period, whenever its Entity Configuration is requested. If the Trust Mark
 expires within the grace period the old (but still valid) Trust Mark JWT
@@ -444,18 +444,18 @@ Entity Configuration.
     ```
 
 ## `configuration_lifetime`
-<span class="badge badge-purple" title="Value Type">integer</span>
-<span class="badge badge-blue" title="Default Value">86400</span>
+<span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
+<span class="badge badge-blue" title="Default Value">1 day</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
 
 The `configuration_lifetime` option sets the lifetime of Entity Configurations, i.e. this options defines for how long 
-the Entity Configuration JWTs are valid. The time is given in seconds and the default is one day.
+the Entity Configuration JWTs are valid.
 
 
 ??? file "config.yaml"
 
     ```yaml
     federation_data:
-        configuration_lifetime: 604800
+        configuration_lifetime: 1w
     ```
 `

@@ -53,36 +53,21 @@ it was not provided externally.
     ```
 
 ## `key_file`
-<span class="badge badge-purple" title="Value Type">file path</span>
-<span class="badge badge-orange" title="If this option is required or optional">required unless `key_dir` is given</span>
+<span class="badge badge-red">Deprecated</span>
 
-The `key_file` option specifies the path to the file that contains the 
-private signing key. The public key does not need to be provided; LightHouse 
-will derive it from the private key.
-
-If the key file does exist, LightHouse will use the provided signing key. If 
-the key file does not exist yet, LightHouse generates a new private key 
-according to the specified parameters (e.g. [`alg`](#alg)).
-
-??? file "config.yaml"
-
-    ```yaml
-    signing:
-        key_file: /path/to/signing.key
-    ```
+The `key_file` option is deprecated and must no longer be used.
+Instead [`key_dir`](#key_dir) is used.
+To keep the existing signing key place it in the `key_dir` directory (if not 
+already the case) and rename it to the following naming scheme:
+`federation_<alg>.pem`, e.g. `federation_ES512.pem`
 
 ## `key_dir`
 <span class="badge badge-purple" title="Value Type">directory path</span>
-<span class="badge badge-orange" title="If this option is required or optional">required*</span>
-
-!!! warning ":fontawesome-solid-person-digging: Not Yet Implemented"
-
-    This option is not yet implemented! Currently only `key_file` is supported.
+<span class="badge badge-red" title="If this option is required or optional">required</span>
 
 The `key_dir` option specifies the path to a directory that contains the
-private signing key(s).
-If automatic key rollover is enabled (a feature coming in the future), a key 
-dir must be used instead of a key file.
+private signing key(s), as well as a key set for public keys.
+
 ??? file "config.yaml"
 
     ```yaml
@@ -90,3 +75,50 @@ dir must be used instead of a key file.
         key_dir: /path/to/keys
     ```
 
+## `automatic_key_rollover`
+<span class="badge badge-purple" title="Value Type">object / mapping</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+
+Under the `automatic_key_rollover` option key rollover / key rotation is configured.
+
+??? file "config.yaml"
+
+    ```yaml
+    signing:
+        key_dir: /path/to/keys
+        automatic_key_rollover:
+            enabled: true
+            interval: 30d
+    ```
+
+### `enabled`
+<span class="badge badge-purple" title="Value Type">boolean</span>
+<span class="badge badge-blue" title="Default Value">`false`</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+
+To enable automatic key rollover / rotation set `enabled` to true.
+If enabled, Lighthouse will automatically generate a new signing key when 
+needed (according to the configured interval). The current and next public 
+key are published in the entity configuration; this allows other entities to 
+already have the public key of the next signing key when it will be used.
+
+### `interval`
+<span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
+<span class="badge badge-blue" title="Default Value">600000 seconds = ca. 1 week</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+
+The `interval` option is used to set the interval at which keys should be 
+rotated, i.e. this defines the lifetime of a key.
+This cannot be smaller than the lifetime of the Entity Configuration. It 
+also should not be smaller than the lifetime of entity statements, trust 
+marks, or other JWTs signed with the federation entity key.
+
+### `old_keys_kept_in_jwks`
+<span class="badge badge-purple" title="Value Type">number</span>
+<span class="badge badge-blue" title="Default Value">0</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+
+The `old_keys_kept_in_jwks` option sets a number of old keys that are still 
+published in the `jwks` in the entity configuration. This option should only 
+be changed when it is needed. Usually, it will not be required to publish 
+old keys here.

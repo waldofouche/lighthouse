@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-oidfed/lib"
 	"github.com/go-oidfed/lib/apimodel"
-	"github.com/go-oidfed/lib/jwks"
+	"github.com/go-oidfed/lib/jwx"
 )
 
 // EntityChecker is an interface used to check if an entity satisfies
@@ -155,10 +155,9 @@ func NewMultipleEntityCheckerAnd(
 }
 
 // Check implements the EntityChecker interface
-func (c MultipleEntityCheckerAnd) Check(
-	entityStatement *oidfed.
-		EntityStatement, entityTypes []string,
-) (bool, int, *oidfed.Error) {
+func (c MultipleEntityCheckerAnd) Check(entityStatement *oidfed.EntityStatement, entityTypes []string) (
+	bool, int, *oidfed.Error,
+) {
 	for _, checker := range c.Checkers {
 		if ok, status, err := checker.Check(entityStatement, entityTypes); !ok {
 			return ok, status, err
@@ -189,7 +188,7 @@ func (c *MultipleEntityCheckerAnd) UnmarshalYAML(node *yaml.Node) error {
 type TrustMarkEntityChecker struct {
 	TrustMarkType       string                    `yaml:"trust_mark_type"`
 	TrustAnchors        oidfed.TrustAnchors       `yaml:"trust_anchors"`
-	TrustMarkIssuerJWKS jwks.JWKS                 `yaml:"trust_mark_issuer_jwks"`
+	TrustMarkIssuerJWKS jwx.JWKS                  `yaml:"trust_mark_issuer_jwks"`
 	TrustMarkOwnerSpec  oidfed.TrustMarkOwnerSpec `yaml:"trust_mark_owner"`
 }
 

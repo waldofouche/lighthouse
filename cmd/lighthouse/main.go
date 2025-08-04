@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/go-oidfed/lib"
+	"github.com/go-oidfed/lib/jwx"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/go-oidfed/lighthouse"
@@ -20,12 +21,15 @@ func main() {
 	logger.Init()
 	log.Info("Loaded Config")
 	c := config.Get()
-	initKey()
+	err := initKey()
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Println("Loaded signing key")
 	for _, tmc := range c.Federation.TrustMarks {
-		if err := tmc.Verify(
+		if err = tmc.Verify(
 			c.Federation.EntityID, c.Endpoints.TrustMarkEndpoint.ValidateURL(c.Federation.EntityID),
-			oidfed.NewTrustMarkSigner(signingKey, c.Signing.Algorithm),
+			jwx.NewTrustMarkSigner(keys.Federation()),
 		); err != nil {
 			log.Fatal(err)
 		}
@@ -52,9 +56,11 @@ func main() {
 				OrganizationURI:  c.Federation.Metadata.OrganizationURI,
 			},
 		},
-		signingKey, c.Signing.Algorithm, c.Federation.ConfigurationLifetime, lighthouse.SubordinateStatementsConfig{
+		keys.Federation(), c.Signing.Algorithm,
+		c.Federation.ConfigurationLifetime.Duration(),
+		lighthouse.SubordinateStatementsConfig{
 			MetadataPolicies:             nil,
-			SubordinateStatementLifetime: c.Endpoints.FetchEndpoint.StatementLifetime,
+			SubordinateStatementLifetime: c.Endpoints.FetchEndpoint.StatementLifetime.Duration(),
 			// TODO read all of this from config or a storage backend
 		}, c.Federation.ExtraEntityConfigurationData,
 	)
@@ -114,6 +120,13 @@ func main() {
 	}
 	if endpoint := c.Endpoints.TrustMarkRequestEndpoint; endpoint.IsSet() {
 		lh.AddTrustMarkRequestEndpoint(endpoint, trustMarkedEntitiesStorage)
+	}
+	if endpoint := c.Endpoints.HistoricalKeysEndpoint; endpoint.IsSet() {
+		lh.AddHistoricalKeysEndpoint(
+			endpoint, func() jwx.JWKS {
+				return keys.History(jwx.KeyStorageTypeFederation)
+			},
+		)
 	}
 	if endpoint := c.Endpoints.EnrollmentEndpoint; endpoint.IsSet() {
 		var checker lighthouse.EntityChecker
