@@ -98,7 +98,7 @@ Under the `automatic_key_rollover` option key rollover / key rotation is configu
 
 To enable automatic key rollover / rotation set `enabled` to true.
 If enabled, Lighthouse will automatically generate a new signing key when 
-needed (according to the configured interval). At current and next public 
+needed (according to the configured interval). The current and next public 
 key are published in the entity configuration; this allows other entities to 
 already have the public key of the next signing key when it will be used.
 
