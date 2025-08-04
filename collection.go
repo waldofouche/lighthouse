@@ -1,9 +1,12 @@
 package lighthouse
 
 import (
+	"fmt"
+
 	"github.com/go-oidfed/lib"
 	"github.com/go-oidfed/lib/apimodel"
 	"github.com/gofiber/fiber/v2"
+	"tideland.dev/go/slices"
 )
 
 // TODO allow limiting the collection endpoint to certain trust anchors
@@ -36,6 +39,44 @@ func (fed *LightHouse) AddEntityCollectionEndpoint(endpoint EndpointConf) {
 			if req.Limit != 0 {
 				ctx.Status(fiber.StatusBadRequest)
 				return ctx.JSON(oidfed.ErrorUnsupportedParameter("parameter 'limit' is not yet supported"))
+			}
+			if wantedButNotSupported := slices.Subtract(
+				req.EntityClaims, []string{
+					"entity_id",
+					"entity_types",
+					"ui_infos",
+					"trust_marks",
+				},
+			); len(wantedButNotSupported) > 0 {
+				ctx.Status(fiber.StatusBadRequest)
+				return ctx.JSON(
+					oidfed.ErrorUnsupportedParameter(
+						fmt.Sprintf(
+							"parameter 'entity_claims' contains the following unsupported values: %+v",
+							wantedButNotSupported,
+						),
+					),
+				)
+			}
+			if wantedButNotSupported := slices.Subtract(
+				req.UIClaims, []string{
+					"display_name",
+					"description",
+					"keywords",
+					"logo_uri",
+					"policy_uri",
+					"information_uri",
+				},
+			); len(wantedButNotSupported) > 0 {
+				ctx.Status(fiber.StatusBadRequest)
+				return ctx.JSON(
+					oidfed.ErrorUnsupportedParameter(
+						fmt.Sprintf(
+							"parameter 'ui_claims' contains the following unsupported values: %+v",
+							wantedButNotSupported,
+						),
+					),
+				)
 			}
 			collector := oidfed.SimpleEntityCollector{}
 			entities := collector.CollectEntities(req)
