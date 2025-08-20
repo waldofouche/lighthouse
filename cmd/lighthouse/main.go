@@ -41,6 +41,7 @@ func main() {
 	}
 
 	lh, err := lighthouse.NewLightHouse(
+		config.Get().Server,
 		c.Federation.EntityID, c.Federation.AuthorityHints,
 		&oidfed.Metadata{
 			FederationEntity: &oidfed.FederationEntityMetadata{
@@ -146,5 +147,5 @@ func main() {
 	}
 	log.Info("Added Endpoints")
 
-	lh.Start(config.Get().Server)
+	lh.Start()
 }
