@@ -195,11 +195,11 @@ func (store *SubordinateBadgerStorage) Delete(entityID string) error {
 func (store *SubordinateBadgerStorage) Read(entityID string) (*SubordinateInfo, error) {
 	var info SubordinateInfo
 	found, err := store.store.Read(entityID, &info)
-	if err != nil {
-		return nil, err
-	}
 	if !found {
 		return nil, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 	return &info, nil
 }
@@ -339,15 +339,15 @@ func (store *TrustMarkedEntitiesBadgerStorage) TrustMarkedStatus(trustMarkType, 
 	var id string
 	k := store.key(trustMarkType, entityID)
 	found, err := store.store.Read(k, &status)
+	if !found {
+		return StatusInactive, nil
+	}
 	if err != nil {
 		found, e := store.store.Read(k, &id)
 		if e == nil && found {
 			return StatusActive, nil
 		}
 		return -1, err
-	}
-	if !found {
-		return StatusInactive, nil
 	}
 	return status, nil
 }
