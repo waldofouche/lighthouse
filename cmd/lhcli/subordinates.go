@@ -8,10 +8,10 @@ import (
 	"github.com/go-oidfed/lib/jwx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/zachmann/go-utils/fileutils"
 
 	"github.com/go-oidfed/lib"
 
-	"github.com/go-oidfed/lighthouse/internal/utils/fileutils"
 	"github.com/go-oidfed/lighthouse/storage"
 )
 
