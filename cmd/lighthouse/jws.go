@@ -5,9 +5,9 @@ import (
 
 	"github.com/go-oidfed/lib/jwx"
 	"github.com/pkg/errors"
+	"github.com/zachmann/go-utils/fileutils"
 
 	"github.com/go-oidfed/lighthouse/cmd/lighthouse/config"
-	"github.com/go-oidfed/lighthouse/internal/utils/fileutils"
 )
 
 var keys *jwx.KeyStorage
