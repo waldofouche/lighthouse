@@ -4,7 +4,9 @@ import (
 	"os"
 
 	"github.com/go-oidfed/lib"
+	"github.com/go-oidfed/lib/cache"
 	"github.com/go-oidfed/lib/jwx"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/go-oidfed/lighthouse"
@@ -21,6 +23,16 @@ func main() {
 	logger.Init()
 	log.Info("Loaded Config")
 	c := config.Get()
+	if redisAddr := c.Caching.RedisAddr; redisAddr != "" {
+		if err := cache.UseRedisCache(
+			&redis.Options{
+				Addr: redisAddr,
+			},
+		); err != nil {
+			log.WithError(err).Fatal("could not init redis cache")
+		}
+		log.Info("Loaded Redis Cache")
+	}
 	err := initKey()
 	if err != nil {
 		log.Fatal(err)

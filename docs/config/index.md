@@ -97,6 +97,7 @@ The following is an example `config.yaml` file:
 - [:material-server-network: Server](server.md)
 - [:material-script-text: Logging](logging.md)
 - [:material-database: Storage](storage.md)
+- [:material-database-clock: Cache](cache.md)
 - [:material-signature-freehand: Signing](signing.md)
 - [:material-routes: Endpoints](endpoints.md)
 - [:simple-openid: Federation Data](federation_data.md)

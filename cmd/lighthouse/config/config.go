@@ -16,6 +16,7 @@ type Config struct {
 	Server     lighthouse.ServerConf `yaml:"server"`
 	Logging    loggingConf           `yaml:"logging"`
 	Storage    storageConf           `yaml:"storage"`
+	Caching    cachingConf           `yaml:"cache"`
 	Signing    signingConf           `yaml:"signing"`
 	Endpoints  Endpoints             `yaml:"endpoints"`
 	Federation federationConf        `yaml:"federation_data"`
