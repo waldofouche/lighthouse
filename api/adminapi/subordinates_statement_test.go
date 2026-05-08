@@ -149,17 +149,18 @@ func TestSubordinateStatement(t *testing.T) {
 		}
 	})
 
-	t.Run("LifetimeFallback", func(t *testing.T) {
+	t.Run("LifetimeDefault", func(t *testing.T) {
 		t.Parallel()
 		app, backends := setupSubordinateStatementApp(t)
 
-		// Don't set any lifetime in KV — should fall back to default
+		// No lifetime set in KV — GetSubordinateStatementLifetime returns default with no error.
+		// This covers the "missing config" path, NOT the error fallback.
 		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
 			BasicSubordinateInfo: model.BasicSubordinateInfo{
-				EntityID: "https://lifetime-fallback.example.org",
+				EntityID: "https://lifetime-default.example.org",
 			},
 		})
-		saved, err := backends.Subordinates.Get("https://lifetime-fallback.example.org")
+		saved, err := backends.Subordinates.Get("https://lifetime-default.example.org")
 		if err != nil {
 			t.Fatalf("Failed to get subordinate: %v", err)
 		}
@@ -183,6 +184,51 @@ func TestSubordinateStatement(t *testing.T) {
 		diff := exp - iat
 		if diff < 599999 || diff > 600001 {
 			t.Errorf("Expected exp-iat ≈ 600000 (default), got %.0f", diff)
+		}
+	})
+
+	t.Run("LifetimeErrorFallback", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateStatementApp(t)
+
+		// Seed invalid JSON into the lifetime KV key so that GetSubordinateStatementLifetime
+		// returns an error. This exercises the `if err != nil` fallback at statement.go:50-51.
+		if err := backends.KV.Set(
+			model.KeyValueScopeSubordinateStatement,
+			model.KeyValueKeyLifetime,
+			[]byte(`"not-an-integer"`),
+		); err != nil {
+			t.Fatalf("Failed to seed invalid lifetime: %v", err)
+		}
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://lifetime-error.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://lifetime-error.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var result map[string]any
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		// Even with a KV error, the handler should fall back to DefaultSubordinateStatementLifetime
+		iat, ok1 := result["iat"].(float64)
+		exp, ok2 := result["exp"].(float64)
+		if !ok1 || !ok2 {
+			t.Fatalf("Expected iat and exp as numbers, got iat=%v exp=%v", result["iat"], result["exp"])
+		}
+		diff := exp - iat
+		if diff < 599999 || diff > 600001 {
+			t.Errorf("Expected exp-iat ≈ 600000 (default fallback on error), got %.0f", diff)
 		}
 	})
 }
