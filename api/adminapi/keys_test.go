@@ -742,7 +742,7 @@ type mockFullKMSWithPending struct {
 func (*mockFullKMSWithPending) GetPendingChanges() (*kms.PendingAlgChange, *kms.PendingDefaultChange) {
 	return nil, &kms.PendingDefaultChange{
 		Alg:         jwa.ES384(),
-		EffectiveAt: unixtime.Unixtime{Time: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)},
+		EffectiveAt: unixtime.Unixtime{Time: time.Now().Add(30 * 24 * time.Hour)},
 	}
 }
 

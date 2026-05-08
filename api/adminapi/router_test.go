@@ -6,6 +6,7 @@ import (
 )
 
 func TestYamlToJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		yamlData string
@@ -94,6 +95,7 @@ servers:
 }
 
 func TestConvertMapKeysToStrings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		input  any

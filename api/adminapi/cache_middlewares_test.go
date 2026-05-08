@@ -42,6 +42,10 @@ func requireCacheEntry(t *testing.T, key string, wantSet bool, wantValue []byte)
 	}
 }
 
+// TestEntityConfigurationCacheInvalidationMiddleware must NOT use t.Parallel().
+// It operates on the global process-wide cache (cache.Set/Get/Delete), which is
+// shared mutable state. Parallelizing these subtests would cause race conditions
+// on the entity configuration cache key.
 func TestEntityConfigurationCacheInvalidationMiddleware(t *testing.T) {
 	cacheValue := []byte("entity-config-jwt")
 
@@ -72,6 +76,10 @@ func TestEntityConfigurationCacheInvalidationMiddleware(t *testing.T) {
 	})
 }
 
+// TestSubordinateStatementsCacheInvalidationMiddleware must NOT use t.Parallel().
+// It operates on the global process-wide cache (cache.Set/Get/Delete), which is
+// shared mutable state. Parallelizing these subtests would cause race conditions
+// on the subordinate statement cache keys.
 func TestSubordinateStatementsCacheInvalidationMiddleware(t *testing.T) {
 	key123 := cache.Key(internal.CacheKeySubordinateStatement, "123")
 	key456 := cache.Key(internal.CacheKeySubordinateStatement, "456")

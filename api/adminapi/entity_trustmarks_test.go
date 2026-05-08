@@ -103,6 +103,8 @@ func TestEntityTrustMarksList(t *testing.T) {
 	})
 }
 
+// TestEntityTrustMarksCreate must NOT use t.Parallel().
+// It uses the global entity configuration cache via setEntityConfigurationCache.
 func TestEntityTrustMarksCreate(t *testing.T) {
 	cacheValue := []byte("cached-entity-config")
 
@@ -233,6 +235,8 @@ func TestEntityTrustMarksGet(t *testing.T) {
 	})
 }
 
+// TestEntityTrustMarksUpdate must NOT use t.Parallel().
+// It uses the global entity configuration cache via setEntityConfigurationCache.
 func TestEntityTrustMarksUpdate(t *testing.T) {
 	cacheValue := []byte("cached-entity-config")
 
@@ -301,6 +305,8 @@ func TestEntityTrustMarksUpdate(t *testing.T) {
 	})
 }
 
+// TestEntityTrustMarksPatch must NOT use t.Parallel().
+// It uses the global entity configuration cache via setEntityConfigurationCache.
 func TestEntityTrustMarksPatch(t *testing.T) {
 	cacheValue := []byte("cached-entity-config")
 
@@ -372,6 +378,8 @@ func TestEntityTrustMarksPatch(t *testing.T) {
 	})
 }
 
+// TestEntityTrustMarksDelete must NOT use t.Parallel().
+// It uses the global entity configuration cache via setEntityConfigurationCache.
 func TestEntityTrustMarksDelete(t *testing.T) {
 	cacheValue := []byte("cached-entity-config")
 

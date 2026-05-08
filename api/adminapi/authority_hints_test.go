@@ -124,6 +124,9 @@ func TestAuthorityHintsList(t *testing.T) {
 	})
 }
 
+// TestAuthorityHintsCreate must NOT use t.Parallel().
+// It uses the global entity configuration cache via setEntityConfigurationCache,
+// which is shared process-wide state.
 func TestAuthorityHintsCreate(t *testing.T) {
 	cacheValue := []byte("cached-entity-config")
 
@@ -242,6 +245,8 @@ func TestAuthorityHintsGet(t *testing.T) {
 	})
 }
 
+// TestAuthorityHintsUpdate must NOT use t.Parallel().
+// It uses the global entity configuration cache via setEntityConfigurationCache.
 func TestAuthorityHintsUpdate(t *testing.T) {
 	cacheValue := []byte("cached-entity-config")
 
@@ -321,6 +326,8 @@ func TestAuthorityHintsUpdate(t *testing.T) {
 	})
 }
 
+// TestAuthorityHintsDelete must NOT use t.Parallel().
+// It uses the global entity configuration cache via setEntityConfigurationCache.
 func TestAuthorityHintsDelete(t *testing.T) {
 	cacheValue := []byte("cached-entity-config")
 
