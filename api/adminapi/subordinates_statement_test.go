@@ -103,4 +103,86 @@ func TestSubordinateStatement(t *testing.T) {
 
 		assertStatus(t, resp, http.StatusNotFound)
 	})
+
+	t.Run("CriticalExtensions", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateStatementApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://crit-ext.example.org",
+			},
+			SubordinateAdditionalClaims: []model.SubordinateAdditionalClaim{
+				{Claim: "custom_claim", Value: "custom_val", Crit: true},
+				{Claim: "normal_claim", Value: "normal_val", Crit: false},
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://crit-ext.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var result map[string]any
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		// Verify critical extensions contains only the crit=true claim
+		critExts, ok := result["crit"].([]any)
+		if !ok || len(critExts) != 1 {
+			t.Fatalf("Expected crit to have 1 entry, got %v", result["crit"])
+		}
+		if critExts[0] != "custom_claim" {
+			t.Errorf("Expected crit[0] = 'custom_claim', got %v", critExts[0])
+		}
+
+		// Verify both claims appear in the extra payload
+		if result["custom_claim"] != "custom_val" {
+			t.Errorf("Expected custom_claim in extra, got %v", result["custom_claim"])
+		}
+		if result["normal_claim"] != "normal_val" {
+			t.Errorf("Expected normal_claim in extra, got %v", result["normal_claim"])
+		}
+	})
+
+	t.Run("LifetimeFallback", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateStatementApp(t)
+
+		// Don't set any lifetime in KV — should fall back to default
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://lifetime-fallback.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://lifetime-fallback.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var result map[string]any
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		// Verify iat and exp are set — exp should be iat + default lifetime
+		iat, ok1 := result["iat"].(float64)
+		exp, ok2 := result["exp"].(float64)
+		if !ok1 || !ok2 {
+			t.Fatalf("Expected iat and exp as numbers, got iat=%v exp=%v", result["iat"], result["exp"])
+		}
+		// Default lifetime is 600000 seconds. Verify exp-iat is approximately that.
+		diff := exp - iat
+		if diff < 599999 || diff > 600001 {
+			t.Errorf("Expected exp-iat ≈ 600000 (default), got %.0f", diff)
+		}
+	})
 }

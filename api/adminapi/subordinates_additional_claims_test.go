@@ -413,6 +413,43 @@ func TestSubordinateAdditionalClaimByID(t *testing.T) {
 		assertStatus(t, resp, http.StatusBadRequest)
 	})
 
+	t.Run("PUT Duplicate/Conflict", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateAdditionalClaimsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://claim-dup-put.example.org",
+			},
+			SubordinateAdditionalClaims: []model.SubordinateAdditionalClaim{
+				{Claim: "claim_a", Value: "val_a"},
+				{Claim: "claim_b", Value: "val_b"},
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://claim-dup-put.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		claims, err := backends.Subordinates.ListAdditionalClaims(fmt.Sprintf("%d", saved.ID))
+		if err != nil {
+			t.Fatalf("Failed to list claims: %v", err)
+		}
+		// Find claim_b's ID, then try to rename it to "claim_a" which already exists
+		var claimBID uint
+		for _, c := range claims {
+			if c.Claim == "claim_b" {
+				claimBID = c.ID
+			}
+		}
+
+		body := `{"claim": "claim_a", "value": "new_val"}`
+		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/additional-claims/%d", saved.ID, claimBID), strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
+	})
+
 	t.Run("DELETE Success", func(t *testing.T) {
 		t.Parallel()
 		app, backends := setupSubordinateAdditionalClaimsApp(t)
@@ -703,6 +740,26 @@ func TestGeneralAdditionalClaimByID(t *testing.T) {
 		if updated[1].Claim != "safe_global" {
 			t.Errorf("Expected sibling global claim to remain untouched")
 		}
+	})
+
+	t.Run("PUT Duplicate/Conflict", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupGeneralAdditionalClaimsApp(t)
+
+		claimsList := []generalAdditionalClaim{
+			{ID: 1, Claim: "claim_x", Value: "val_x", Crit: false},
+			{ID: 2, Claim: "claim_y", Value: "val_y", Crit: true},
+		}
+		if err := backends.KV.SetAny(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyAdditionalClaims, claimsList); err != nil {
+			t.Fatalf("Failed to set KV value: %v", err)
+		}
+
+		// Try renaming claim_y (ID=2) to "claim_x" which already exists
+		body := `{"claim": "claim_x", "value": "new_val"}`
+		req := httptest.NewRequest("PUT", "/subordinates/additional-claims/2", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
 	})
 
 	t.Run("DELETE Success", func(t *testing.T) {

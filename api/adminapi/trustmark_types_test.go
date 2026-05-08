@@ -782,6 +782,28 @@ func TestTrustMarkIssuersHandlers_Delete(t *testing.T) {
 
 		assertErrorResponse(t, resp, body, http.StatusInternalServerError, "server_error")
 	})
+
+	t.Run("ResolveIssuerIDToZero", func(t *testing.T) {
+		t.Parallel()
+		// When resolveIssuerID can't find the issuer string in the list after AddIssuer,
+		// it returns (0, nil), which the delete handler maps to 404.
+		mockStore := &mockTrustMarkTypesStore{
+			addIssuerFn: func(_ string, _ model.AddTrustMarkIssuer) ([]model.TrustMarkIssuer, error) {
+				// AddIssuer succeeds but the issuer won't appear in ListIssuers
+				return []model.TrustMarkIssuer{}, nil
+			},
+			listIssuersFn: func(_ string) ([]model.TrustMarkIssuer, error) {
+				// Return a list that doesn't contain the requested issuer string
+				return []model.TrustMarkIssuer{{ID: 1, Issuer: "some-other-issuer"}}, nil
+			},
+		}
+		app := setupTrustMarkTypesApp(t, mockStore)
+
+		// Use a non-numeric issuer param to trigger the resolve-by-string path
+		req := httptest.NewRequest("DELETE", "/trust-marks/types/1/issuers/nonexistent-issuer", http.NoBody)
+		resp, body := doRequest(t, app, req)
+		assertErrorResponse(t, resp, body, http.StatusNotFound, "not_found")
+	})
 }
 
 func TestTrustMarkOwnerHandlers_Get(t *testing.T) {
