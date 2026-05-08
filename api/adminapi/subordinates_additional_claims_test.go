@@ -230,6 +230,42 @@ func TestSubordinateAdditionalClaimsAll(t *testing.T) {
 
 		assertStatus(t, resp, http.StatusBadRequest)
 	})
+
+	t.Run("POST Duplicate/Conflict", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateAdditionalClaimsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://claims-dup-post.example.org",
+			},
+			SubordinateAdditionalClaims: []model.SubordinateAdditionalClaim{
+				{Claim: "existing_claim", Value: "val1"},
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://claims-dup-post.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		// POST with same claim name → should return 409 Conflict
+		body := `{"claim": "existing_claim", "value": "val2"}`
+		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/additional-claims", saved.ID), strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
+	})
+
+	t.Run("POST NotFound/Subordinate", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupSubordinateAdditionalClaimsApp(t)
+
+		body := `{"claim": "test", "value": "test"}`
+		req := httptest.NewRequest("POST", "/subordinates/9999/additional-claims", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusNotFound, "not_found")
+	})
 }
 
 // --- GET, PUT, DELETE /subordinates/:subordinateID/additional-claims/:additionalClaimsID TESTS ---

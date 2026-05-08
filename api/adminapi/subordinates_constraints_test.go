@@ -999,3 +999,248 @@ func TestGeneralConstraintsAllowedEntityTypes(t *testing.T) {
 		}
 	})
 }
+
+// --- POST /subordinates/:subordinateID/constraints TESTS (Copy from General) ---
+
+func TestSubordinateConstraintsPostAll(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Success/CopiesFromGeneral", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateConstraintsApp(t)
+
+		// Seed general constraints in KV
+		length := 3
+		if err := backends.KV.SetAny(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &oidfed.ConstraintSpecification{
+			MaxPathLength:      &length,
+			AllowedEntityTypes: []string{"openid_provider"},
+		}); err != nil {
+			t.Fatalf("Failed to seed general constraints: %v", err)
+		}
+
+		// Seed subordinate with no constraints
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://post-all.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://post-all.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusCreated)
+
+		var result oidfed.ConstraintSpecification
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+		if result.MaxPathLength == nil || *result.MaxPathLength != 3 {
+			t.Errorf("Expected MaxPathLength 3, got %v", result.MaxPathLength)
+		}
+		if len(result.AllowedEntityTypes) != 1 || result.AllowedEntityTypes[0] != "openid_provider" {
+			t.Errorf("Expected AllowedEntityTypes [openid_provider], got %v", result.AllowedEntityTypes)
+		}
+	})
+
+	t.Run("Success/NoGeneral", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateConstraintsApp(t)
+
+		// No general constraints seeded — should copy empty spec
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://post-all-empty.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://post-all-empty.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusCreated)
+
+		var result oidfed.ConstraintSpecification
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+		if result.MaxPathLength != nil {
+			t.Errorf("Expected nil MaxPathLength for empty general, got %v", result.MaxPathLength)
+		}
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupSubordinateConstraintsApp(t)
+
+		req := httptest.NewRequest("POST", "/subordinates/9999/constraints", http.NoBody)
+		resp, _ := doRequest(t, app, req)
+		assertStatus(t, resp, http.StatusNotFound)
+	})
+}
+
+// --- EDGE CASE TESTS ---
+
+func TestSubordinateConstraintsEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("MaxPathLength/ZeroBoundary", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateConstraintsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://mpl-zero.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://mpl-zero.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		// max_path_length = 0 should succeed (0 is valid, means "no further subordinates")
+		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/constraints/max-path-length", saved.ID),
+			strings.NewReader(`0`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var result int
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to unmarshal: %v", err)
+		}
+		if result != 0 {
+			t.Errorf("Expected 0, got %d", result)
+		}
+	})
+
+	t.Run("MaxPathLength/NegativeRejected", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateConstraintsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://mpl-neg.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://mpl-neg.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/constraints/max-path-length", saved.ID),
+			strings.NewReader(`-1`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, body := doRequest(t, app, req)
+		assertErrorResponse(t, resp, body, http.StatusBadRequest, "invalid_request")
+	})
+
+	t.Run("PostAllowedEntityType/Duplicate", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateConstraintsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://dup-type.example.org",
+			},
+			Constraints: &oidfed.ConstraintSpecification{
+				AllowedEntityTypes: []string{"openid_provider"},
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://dup-type.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		// POST duplicate — should return existing list without adding
+		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types", saved.ID),
+			strings.NewReader(`openid_provider`))
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusCreated)
+
+		var result []string
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to unmarshal: %v", err)
+		}
+		// Should still have exactly 1, not 2
+		if len(result) != 1 {
+			t.Errorf("Expected 1 entity type (idempotent), got %d: %v", len(result), result)
+		}
+	})
+
+	t.Run("DeleteAllowedEntityType/NonExistent", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateConstraintsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://del-noexist.example.org",
+			},
+			Constraints: &oidfed.ConstraintSpecification{
+				AllowedEntityTypes: []string{"openid_provider"},
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://del-noexist.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		// DELETE a type that doesn't exist — returns unchanged list
+		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types/nonexistent_type", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var result []string
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to unmarshal: %v", err)
+		}
+		if len(result) != 1 || result[0] != "openid_provider" {
+			t.Errorf("Expected unchanged [openid_provider], got %v", result)
+		}
+	})
+
+	t.Run("DeleteAllowedEntityType/NilConstraints", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateConstraintsApp(t)
+
+		// Subordinate with nil constraints
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://del-nilcons.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://del-nilcons.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types/any", saved.ID), http.NoBody)
+		resp, _ := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusNoContent)
+	})
+
+	t.Run("PutAll/NegativeMaxPathLength", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateConstraintsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://putall-neg.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://putall-neg.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		body := `{"max_path_length": -1, "allowed_entity_types": ["openid_provider"]}`
+		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+	})
+}

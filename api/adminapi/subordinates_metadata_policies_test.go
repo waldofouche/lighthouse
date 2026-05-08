@@ -1695,3 +1695,239 @@ func TestGeneralMetadataPolicyByOperator(t *testing.T) {
 		}
 	})
 }
+
+// --- /subordinates/metadata-policy-crit TESTS ---
+
+func setupMetadataPolicyCritApp(t *testing.T) (*fiber.App, model.Backends) {
+	t.Helper()
+	store := newSubordinateTestStorage(t)
+	backends := model.Backends{
+		KV: store.KeyValue(),
+	}
+	app := fiber.New()
+	registerSubordinateMetadataPolicyCrit(app, backends.KV)
+	return app, backends
+}
+
+func TestMetadataPolicyCrit(t *testing.T) {
+	t.Parallel()
+
+	t.Run("GET Success/Empty", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupMetadataPolicyCritApp(t)
+
+		req := httptest.NewRequest("GET", "/subordinates/metadata-policy-crit", http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var operators []string
+		if err := json.Unmarshal(body, &operators); err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+		if len(operators) != 0 {
+			t.Errorf("Expected empty operators list, got %v", operators)
+		}
+	})
+
+	t.Run("PUT and GET Success", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupMetadataPolicyCritApp(t)
+
+		// PUT a list of operators
+		putBody := `["value","add","subset_of"]`
+		req := httptest.NewRequest("PUT", "/subordinates/metadata-policy-crit", strings.NewReader(putBody))
+		req.Header.Set("Content-Type", "application/json")
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var putResult []string
+		if err := json.Unmarshal(body, &putResult); err != nil {
+			t.Fatalf("Failed to unmarshal PUT response: %v", err)
+		}
+		if len(putResult) != 3 {
+			t.Errorf("Expected 3 operators, got %d", len(putResult))
+		}
+
+		// Verify GET returns the same list
+		req = httptest.NewRequest("GET", "/subordinates/metadata-policy-crit", http.NoBody)
+		resp, body = doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var getResult []string
+		if err := json.Unmarshal(body, &getResult); err != nil {
+			t.Fatalf("Failed to unmarshal GET response: %v", err)
+		}
+		if len(getResult) != 3 || getResult[0] != "value" {
+			t.Errorf("Expected [value add subset_of], got %v", getResult)
+		}
+	})
+
+	t.Run("PUT InvalidBody", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupMetadataPolicyCritApp(t)
+
+		req := httptest.NewRequest("PUT", "/subordinates/metadata-policy-crit", strings.NewReader(`not-json`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, body := doRequest(t, app, req)
+		assertErrorResponse(t, resp, body, http.StatusBadRequest, "invalid_request")
+	})
+
+	t.Run("POST Success", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupMetadataPolicyCritApp(t)
+
+		req := httptest.NewRequest("POST", "/subordinates/metadata-policy-crit", strings.NewReader(`"value"`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusCreated)
+
+		var result string
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+		if result != "value" {
+			t.Errorf("Expected 'value', got %q", result)
+		}
+	})
+
+	t.Run("POST Duplicate/Conflict", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupMetadataPolicyCritApp(t)
+
+		// Seed an existing operator
+		if err := backends.KV.SetAny(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicyCrit, []string{"value"}); err != nil {
+			t.Fatalf("Failed to seed: %v", err)
+		}
+
+		// POST duplicate
+		req := httptest.NewRequest("POST", "/subordinates/metadata-policy-crit", strings.NewReader(`"value"`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, body := doRequest(t, app, req)
+		assertErrorResponse(t, resp, body, http.StatusConflict, "invalid_request")
+	})
+
+	t.Run("POST InvalidBody", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupMetadataPolicyCritApp(t)
+
+		req := httptest.NewRequest("POST", "/subordinates/metadata-policy-crit", strings.NewReader(`{not-json`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, body := doRequest(t, app, req)
+		assertErrorResponse(t, resp, body, http.StatusBadRequest, "invalid_request")
+	})
+
+	t.Run("DELETE Success", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupMetadataPolicyCritApp(t)
+
+		// Seed
+		if err := backends.KV.SetAny(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicyCrit, []string{"value", "add"}); err != nil {
+			t.Fatalf("Failed to seed: %v", err)
+		}
+
+		req := httptest.NewRequest("DELETE", "/subordinates/metadata-policy-crit/value", http.NoBody)
+		resp, _ := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusNoContent)
+
+		// Verify only "add" remains
+		req = httptest.NewRequest("GET", "/subordinates/metadata-policy-crit", http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		var remaining []string
+		if err := json.Unmarshal(body, &remaining); err != nil {
+			t.Fatalf("Failed to unmarshal: %v", err)
+		}
+		if len(remaining) != 1 || remaining[0] != "add" {
+			t.Errorf("Expected [add], got %v", remaining)
+		}
+	})
+
+	t.Run("DELETE NotFound", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupMetadataPolicyCritApp(t)
+
+		req := httptest.NewRequest("DELETE", "/subordinates/metadata-policy-crit/nonexistent", http.NoBody)
+		resp, body := doRequest(t, app, req)
+		assertErrorResponse(t, resp, body, http.StatusNotFound, "not_found")
+	})
+}
+
+// --- filterUsedPolicyOperators TESTS ---
+
+func TestFilterUsedPolicyOperators(t *testing.T) {
+	t.Parallel()
+
+	t.Run("NilPolicy", func(t *testing.T) {
+		t.Parallel()
+		result := filterUsedPolicyOperators(nil, []oidfed.PolicyOperatorName{"value"})
+		if result != nil {
+			t.Errorf("Expected nil for nil policy, got %v", result)
+		}
+	})
+
+	t.Run("EmptyCrit", func(t *testing.T) {
+		t.Parallel()
+		mp := &oidfed.MetadataPolicies{
+			OpenIDProvider: oidfed.MetadataPolicy{
+				"issuer": oidfed.MetadataPolicyEntry{"value": "x"},
+			},
+		}
+		result := filterUsedPolicyOperators(mp, nil)
+		if result != nil {
+			t.Errorf("Expected nil for empty crit, got %v", result)
+		}
+	})
+
+	t.Run("FiltersToUsedOnly", func(t *testing.T) {
+		t.Parallel()
+		mp := &oidfed.MetadataPolicies{
+			OpenIDProvider: oidfed.MetadataPolicy{
+				"issuer": oidfed.MetadataPolicyEntry{"value": "x"},
+			},
+			RelyingParty: oidfed.MetadataPolicy{
+				"contacts": oidfed.MetadataPolicyEntry{"add": []any{"a@b.com"}},
+			},
+		}
+		crit := []oidfed.PolicyOperatorName{"value", "add", "subset_of"}
+		result := filterUsedPolicyOperators(mp, crit)
+
+		if len(result) != 2 {
+			t.Fatalf("Expected 2 filtered operators, got %d: %v", len(result), result)
+		}
+		// Should preserve order from configuredCrit
+		if result[0] != "value" || result[1] != "add" {
+			t.Errorf("Expected [value add], got %v", result)
+		}
+	})
+
+	t.Run("NoneUsed", func(t *testing.T) {
+		t.Parallel()
+		mp := &oidfed.MetadataPolicies{
+			OpenIDProvider: oidfed.MetadataPolicy{
+				"issuer": oidfed.MetadataPolicyEntry{"value": "x"},
+			},
+		}
+		crit := []oidfed.PolicyOperatorName{"subset_of", "superset_of"}
+		result := filterUsedPolicyOperators(mp, crit)
+		if result != nil {
+			t.Errorf("Expected nil when no operators match, got %v", result)
+		}
+	})
+
+	t.Run("ExtraEntityTypes", func(t *testing.T) {
+		t.Parallel()
+		mp := &oidfed.MetadataPolicies{
+			Extra: map[string]oidfed.MetadataPolicy{
+				"custom_type": {
+					"custom_claim": oidfed.MetadataPolicyEntry{"essential": true},
+				},
+			},
+		}
+		crit := []oidfed.PolicyOperatorName{"essential", "value"}
+		result := filterUsedPolicyOperators(mp, crit)
+		if len(result) != 1 || result[0] != "essential" {
+			t.Errorf("Expected [essential], got %v", result)
+		}
+	})
+}

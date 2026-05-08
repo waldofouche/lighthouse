@@ -381,6 +381,93 @@ func TestTrustMarkTypesHandlers_Update(t *testing.T) {
 
 		assertErrorResponse(t, resp, respBody, http.StatusInternalServerError, "server_error")
 	})
+
+	t.Run("OwnerNotFound/AutoCreates", func(t *testing.T) {
+		t.Parallel()
+		createCalled := false
+		mockStore := &mockTrustMarkTypesStore{
+			updateFn: func(_ string, _ model.AddTrustMarkType) (*model.TrustMarkType, error) {
+				return &model.TrustMarkType{TrustMarkType: "updated"}, nil
+			},
+			updateOwnerFn: func(_ string, _ model.AddTrustMarkOwner) (*model.TrustMarkOwner, error) {
+				return nil, model.NotFoundError("owner not found")
+			},
+			createOwnerFn: func(_ string, req model.AddTrustMarkOwner) (*model.TrustMarkOwner, error) {
+				createCalled = true
+				return &model.TrustMarkOwner{EntityID: req.EntityID}, nil
+			},
+		}
+		app := setupTrustMarkTypesApp(t, mockStore)
+
+		// OwnerID is nil → should auto-create
+		body := `{"trust_mark_type": "t1", "trust_mark_owner": {"entity_id": "new-owner"}}`
+		req := httptest.NewRequest("PUT", "/trust-marks/types/1", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, _ := doRequest(t, app, req)
+		requireStatus(t, resp, http.StatusOK)
+
+		if !createCalled {
+			t.Errorf("Expected CreateOwner to be called when UpdateOwner returns NotFound and OwnerID is nil")
+		}
+	})
+
+	t.Run("OwnerNotFound/WithOwnerID", func(t *testing.T) {
+		t.Parallel()
+		mockStore := &mockTrustMarkTypesStore{
+			updateFn: func(_ string, _ model.AddTrustMarkType) (*model.TrustMarkType, error) {
+				return &model.TrustMarkType{TrustMarkType: "updated"}, nil
+			},
+			updateOwnerFn: func(_ string, _ model.AddTrustMarkOwner) (*model.TrustMarkOwner, error) {
+				return nil, model.NotFoundError("owner not found")
+			},
+		}
+		app := setupTrustMarkTypesApp(t, mockStore)
+
+		// OwnerID is set → should NOT auto-create, should return NotFound
+		body := `{"trust_mark_type": "t1", "trust_mark_owner": {"entity_id": "owner1", "owner_id": "99"}}`
+		req := httptest.NewRequest("PUT", "/trust-marks/types/1", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusNotFound, "not_found")
+	})
+
+	t.Run("OwnerAutoCreate/Fails", func(t *testing.T) {
+		t.Parallel()
+		mockStore := &mockTrustMarkTypesStore{
+			updateFn: func(_ string, _ model.AddTrustMarkType) (*model.TrustMarkType, error) {
+				return &model.TrustMarkType{TrustMarkType: "updated"}, nil
+			},
+			updateOwnerFn: func(_ string, _ model.AddTrustMarkOwner) (*model.TrustMarkOwner, error) {
+				return nil, model.NotFoundError("owner not found")
+			},
+			createOwnerFn: func(_ string, _ model.AddTrustMarkOwner) (*model.TrustMarkOwner, error) {
+				return nil, errors.New("db insert failed")
+			},
+		}
+		app := setupTrustMarkTypesApp(t, mockStore)
+
+		body := `{"trust_mark_type": "t1", "trust_mark_owner": {"entity_id": "new-owner"}}`
+		req := httptest.NewRequest("PUT", "/trust-marks/types/1", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusInternalServerError, "server_error")
+	})
+
+	t.Run("AlreadyExists/Conflict", func(t *testing.T) {
+		t.Parallel()
+		mockStore := &mockTrustMarkTypesStore{
+			updateFn: func(_ string, _ model.AddTrustMarkType) (*model.TrustMarkType, error) {
+				return nil, model.AlreadyExistsError("type already exists")
+			},
+		}
+		app := setupTrustMarkTypesApp(t, mockStore)
+
+		body := `{"trust_mark_type": "duplicate-type"}`
+		req := httptest.NewRequest("PUT", "/trust-marks/types/1", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
+	})
 }
 
 func TestTrustMarkTypesHandlers_Delete(t *testing.T) {
