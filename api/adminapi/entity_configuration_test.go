@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -116,6 +117,26 @@ func newStubFedEntity() *mockFederationEntity {
 			return &oidfed.EntityStatementPayload{}, nil
 		},
 	}
+}
+
+func setupRealEntityConfigClaimsApp(t *testing.T) (*fiber.App, smodel.AdditionalClaimsStore) {
+	t.Helper()
+	store := newTestStorage(t)
+	claimsStore := store.AdditionalClaimsStorage()
+	app := setupEntityConfigTestApp(newStubFedEntity(), claimsStore, store.KeyValue())
+	return app, claimsStore
+}
+
+func requireEntityConfigClaimRecord(t *testing.T, store smodel.AdditionalClaimsStore, ident string) *smodel.EntityConfigurationAdditionalClaim {
+	t.Helper()
+	claim, err := store.Get(ident)
+	if err != nil {
+		t.Fatalf("failed to get entity configuration additional claim %q: %v", ident, err)
+	}
+	if claim == nil {
+		t.Fatalf("expected entity configuration additional claim %q to exist", ident)
+	}
+	return claim
 }
 
 // --- TESTS ---
@@ -279,6 +300,42 @@ func TestPutAdditionalClaims(t *testing.T) {
 		}
 	})
 
+	t.Run("SuccessWithObjectValues_RealStore", func(t *testing.T) {
+		t.Parallel()
+		app, store := setupRealEntityConfigClaimsApp(t)
+
+		body := `[
+			{"claim":"org_name","value":{"display":"ACME","labels":{"tier":"gold"}},"crit":false},
+			{"claim":"policy_flags","value":{"beta":true},"crit":true}
+		]`
+		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusOK)
+
+		var got []smodel.EntityConfigurationAdditionalClaim
+		if err := json.Unmarshal(respBody, &got); err != nil {
+			t.Fatalf("failed to unmarshal PUT additional claims response: %v", err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("expected 2 claims in response, got %d", len(got))
+		}
+
+		storedOrg := requireEntityConfigClaimRecord(t, store, "org_name")
+		storedOrgValue := requireJSONMap(t, storedOrg.Value, "stored org_name value")
+		storedLabels := requireJSONMap(t, storedOrgValue["labels"], "stored org_name labels")
+		if storedOrgValue["display"] != "ACME" || storedLabels["tier"] != "gold" {
+			t.Fatalf("expected org_name object value to persist, got %+v", storedOrg.Value)
+		}
+
+		storedFlags := requireEntityConfigClaimRecord(t, store, "policy_flags")
+		storedFlagsValue := requireJSONMap(t, storedFlags.Value, "stored policy_flags value")
+		if storedFlagsValue["beta"] != true || !storedFlags.Crit {
+			t.Fatalf("expected policy_flags object value and crit to persist, got %+v", storedFlags)
+		}
+	})
+
 	t.Run("InvalidBody", func(t *testing.T) {
 		t.Parallel()
 		app := setupEntityConfigTestApp(
@@ -359,6 +416,35 @@ func TestPostAdditionalClaim(t *testing.T) {
 		}
 		if got.Claim != "org_name" {
 			t.Errorf("expected claim %q, got %q", "org_name", got.Claim)
+		}
+	})
+
+	t.Run("SuccessWithObjectValue_RealStore", func(t *testing.T) {
+		t.Parallel()
+		app, store := setupRealEntityConfigClaimsApp(t)
+
+		body := `{"claim":"org_profile","value":{"sector":"finance","flags":{"beta":true}},"crit":true}`
+		req := httptest.NewRequest("POST", "/entity-configuration/additional-claims", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusCreated)
+
+		var created smodel.EntityConfigurationAdditionalClaim
+		if err := json.Unmarshal(respBody, &created); err != nil {
+			t.Fatalf("failed to unmarshal POST additional claim response: %v", err)
+		}
+		createdValue := requireJSONMap(t, created.Value, "created org_profile value")
+		createdFlags := requireJSONMap(t, createdValue["flags"], "created org_profile flags")
+		if createdValue["sector"] != "finance" || createdFlags["beta"] != true || !created.Crit {
+			t.Fatalf("expected object value in create response, got %+v", created)
+		}
+
+		stored := requireEntityConfigClaimRecord(t, store, "org_profile")
+		storedValue := requireJSONMap(t, stored.Value, "stored org_profile value")
+		storedFlags := requireJSONMap(t, storedValue["flags"], "stored org_profile flags")
+		if storedValue["sector"] != "finance" || storedFlags["beta"] != true || !stored.Crit {
+			t.Fatalf("expected object value to persist, got %+v", stored)
 		}
 	})
 
@@ -501,6 +587,41 @@ func TestPutAdditionalClaimByID(t *testing.T) {
 		}
 		if got.Claim != "org_name" || got.Crit != true {
 			t.Errorf("unexpected response: %+v", got)
+		}
+	})
+
+	t.Run("SuccessWithObjectValue_RealStore", func(t *testing.T) {
+		t.Parallel()
+		app, store := setupRealEntityConfigClaimsApp(t)
+
+		seeded, err := store.Create(smodel.AddAdditionalClaim{Claim: "org_name", Value: "initial", Crit: false})
+		if err != nil {
+			t.Fatalf("failed to seed additional claim: %v", err)
+		}
+
+		body := `{"claim":"org_name","value":{"display":"UpdatedACME","meta":{"region":"eu"}},"crit":true}`
+		path := "/entity-configuration/additional-claims/" + strconv.FormatUint(uint64(seeded.ID), 10)
+		req := httptest.NewRequest("PUT", path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusOK)
+
+		var updated smodel.EntityConfigurationAdditionalClaim
+		if err := json.Unmarshal(respBody, &updated); err != nil {
+			t.Fatalf("failed to unmarshal PUT additional claim response: %v", err)
+		}
+		updatedValue := requireJSONMap(t, updated.Value, "updated org_name value")
+		updatedMeta := requireJSONMap(t, updatedValue["meta"], "updated org_name meta")
+		if updatedValue["display"] != "UpdatedACME" || updatedMeta["region"] != "eu" || !updated.Crit {
+			t.Fatalf("expected object value in update response, got %+v", updated)
+		}
+
+		stored := requireEntityConfigClaimRecord(t, store, strconv.FormatUint(uint64(seeded.ID), 10))
+		storedValue := requireJSONMap(t, stored.Value, "stored updated org_name value")
+		storedMeta := requireJSONMap(t, storedValue["meta"], "stored updated org_name meta")
+		if storedValue["display"] != "UpdatedACME" || storedMeta["region"] != "eu" || !stored.Crit {
+			t.Fatalf("expected object value to persist after update, got %+v", stored)
 		}
 	})
 

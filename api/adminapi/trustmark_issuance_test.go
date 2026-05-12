@@ -1,6 +1,7 @@
 package adminapi
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -120,6 +121,22 @@ func setupTrustMarkIssuanceApp(t *testing.T, store model.TrustMarkSpecStore) *fi
 	app := fiber.New()
 	registerTrustMarkIssuance(app, store)
 	return app
+}
+
+func setupRealTrustMarkIssuanceApp(t *testing.T) (*fiber.App, model.TrustMarkSpecStore) {
+	t.Helper()
+	store := newTestStorage(t)
+	specStore := store.TrustMarkSpecStorage()
+	return setupTrustMarkIssuanceApp(t, specStore), specStore
+}
+
+func requireJSONMap(t *testing.T, value any, name string) map[string]any {
+	t.Helper()
+	m, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected %s to be map[string]any, got %T", name, value)
+	}
+	return m
 }
 
 // --- TESTS ---
@@ -980,5 +997,378 @@ func TestTrustMarkSubjectHandlers_AdditionalClaims(t *testing.T) {
 		resp, body := doRequest(t, app, req)
 
 		assertErrorResponse(t, resp, body, http.StatusNotFound, "not_found")
+	})
+}
+
+func TestTrustMarkSpecHandlers_RealStoragePersistence(t *testing.T) {
+	t.Parallel()
+
+	t.Run("CreatePersistsStructuredFields", func(t *testing.T) {
+		t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+		body := `{
+			"trust_mark_type": "type-real-create",
+			"additional_claims": {
+				"profile": {
+					"name": "gold",
+					"enabled": true
+				}
+			},
+			"eligibility_config": {
+				"mode": "custom",
+				"checker": {
+					"type": "http",
+					"config": {
+						"endpoint": "https://checker.example.org"
+					}
+				},
+				"check_cache_ttl": 90
+			}
+		}`
+
+		req := httptest.NewRequest(http.MethodPost, "/trust-marks/issuance-spec", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusCreated)
+
+		var created model.TrustMarkSpec
+		if err := json.Unmarshal(respBody, &created); err != nil {
+			t.Fatalf("failed to unmarshal create response: %v", err)
+		}
+		if created.TrustMarkType != "type-real-create" {
+			t.Fatalf("expected trust_mark_type %q, got %q", "type-real-create", created.TrustMarkType)
+		}
+		responseProfile := requireJSONMap(t, created.AdditionalClaims["profile"], "create response additional_claims.profile")
+		if responseProfile["name"] != "gold" || responseProfile["enabled"] != true {
+			t.Fatalf("unexpected create response additional_claims.profile: %+v", responseProfile)
+		}
+		if created.EligibilityConfig == nil || created.EligibilityConfig.Mode != model.EligibilityModeCustom {
+			t.Fatalf("unexpected create response eligibility_config: %+v", created.EligibilityConfig)
+		}
+		if created.EligibilityConfig.Checker == nil || created.EligibilityConfig.Checker.Type != "http" {
+			t.Fatalf("unexpected create response checker config: %+v", created.EligibilityConfig)
+		}
+
+		persisted, err := specStore.Get("type-real-create")
+		if err != nil {
+			t.Fatalf("failed to reload created spec: %v", err)
+		}
+		persistedProfile := requireJSONMap(t, persisted.AdditionalClaims["profile"], "persisted additional_claims.profile")
+		if persistedProfile["name"] != "gold" || persistedProfile["enabled"] != true {
+			t.Fatalf("unexpected persisted additional_claims.profile: %+v", persistedProfile)
+		}
+		if persisted.EligibilityConfig == nil || persisted.EligibilityConfig.Mode != model.EligibilityModeCustom {
+			t.Fatalf("unexpected persisted eligibility_config: %+v", persisted.EligibilityConfig)
+		}
+		if persisted.EligibilityConfig.Checker == nil || persisted.EligibilityConfig.Checker.Config["endpoint"] != "https://checker.example.org" {
+			t.Fatalf("unexpected persisted checker config: %+v", persisted.EligibilityConfig)
+		}
+	})
+
+	t.Run("UpdatePersistsStructuredFields", func(t *testing.T) {
+		t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-real-update-initial"}); err != nil {
+			t.Fatalf("failed to seed spec: %v", err)
+		}
+
+		body := `{
+			"trust_mark_type": "type-real-update-final",
+			"description": "updated spec",
+			"additional_claims": {
+				"profile": {
+					"name": "platinum"
+				}
+			},
+			"eligibility_config": {
+				"mode": "custom",
+				"checker": {
+					"type": "script",
+					"config": {
+						"path": "/opt/checker.sh"
+					}
+				},
+				"check_cache_ttl": 45
+			}
+		}`
+
+		req := httptest.NewRequest(http.MethodPut, "/trust-marks/issuance-spec/type-real-update-initial", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusOK)
+
+		var updated model.TrustMarkSpec
+		if err := json.Unmarshal(respBody, &updated); err != nil {
+			t.Fatalf("failed to unmarshal update response: %v", err)
+		}
+		if updated.TrustMarkType != "type-real-update-final" || updated.Description != "updated spec" {
+			t.Fatalf("unexpected update response payload: %+v", updated)
+		}
+		updatedProfile := requireJSONMap(t, updated.AdditionalClaims["profile"], "update response additional_claims.profile")
+		if updatedProfile["name"] != "platinum" {
+			t.Fatalf("unexpected update response additional_claims.profile: %+v", updatedProfile)
+		}
+
+		persisted, err := specStore.Get("type-real-update-final")
+		if err != nil {
+			t.Fatalf("failed to reload updated spec: %v", err)
+		}
+		persistedProfile := requireJSONMap(t, persisted.AdditionalClaims["profile"], "persisted update additional_claims.profile")
+		if persisted.Description != "updated spec" || persistedProfile["name"] != "platinum" {
+			t.Fatalf("unexpected persisted updated spec: %+v", persisted)
+		}
+		if persisted.EligibilityConfig == nil || persisted.EligibilityConfig.Checker == nil || persisted.EligibilityConfig.Checker.Config["path"] != "/opt/checker.sh" {
+			t.Fatalf("unexpected persisted updated eligibility_config: %+v", persisted.EligibilityConfig)
+		}
+	})
+
+	t.Run("PatchPersistsStructuredFields", func(t *testing.T) {
+		t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-real-patch"}); err != nil {
+			t.Fatalf("failed to seed patch spec: %v", err)
+		}
+
+		body := `{
+			"additional_claims": {
+				"profile": {
+					"name": "silver",
+					"tier": "b"
+				}
+			},
+			"eligibility_config": {
+				"mode": "custom",
+				"checker": {
+					"type": "http",
+					"config": {
+						"endpoint": "https://patched-checker.example.org"
+					}
+				},
+				"check_cache_ttl": 30
+			}
+		}`
+
+		req := httptest.NewRequest(http.MethodPatch, "/trust-marks/issuance-spec/type-real-patch", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusOK)
+
+		var patched model.TrustMarkSpec
+		if err := json.Unmarshal(respBody, &patched); err != nil {
+			t.Fatalf("failed to unmarshal patch response: %v", err)
+		}
+		patchedProfile := requireJSONMap(t, patched.AdditionalClaims["profile"], "patch response additional_claims.profile")
+		if patched.TrustMarkType != "type-real-patch" || patchedProfile["name"] != "silver" || patchedProfile["tier"] != "b" {
+			t.Fatalf("unexpected patch response payload: %+v", patched)
+		}
+
+		persisted, err := specStore.Get("type-real-patch")
+		if err != nil {
+			t.Fatalf("failed to reload patched spec: %v", err)
+		}
+		persistedProfile := requireJSONMap(t, persisted.AdditionalClaims["profile"], "persisted patch additional_claims.profile")
+		if persistedProfile["name"] != "silver" || persistedProfile["tier"] != "b" {
+			t.Fatalf("unexpected persisted patch additional_claims.profile: %+v", persistedProfile)
+		}
+		if persisted.EligibilityConfig == nil || persisted.EligibilityConfig.Checker == nil || persisted.EligibilityConfig.Checker.Config["endpoint"] != "https://patched-checker.example.org" {
+			t.Fatalf("unexpected persisted patch eligibility_config: %+v", persisted.EligibilityConfig)
+		}
+	})
+}
+
+func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
+	t.Parallel()
+
+	t.Run("CreatePersistsAdditionalClaims", func(t *testing.T) {
+		t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-subject-create"}); err != nil {
+			t.Fatalf("failed to seed subject spec: %v", err)
+		}
+
+		body := `{
+			"entity_id": "subject-create",
+			"additional_claims": {
+				"profile": {
+					"sector": "finance"
+				},
+				"enabled": true
+			}
+		}`
+
+		req := httptest.NewRequest(http.MethodPost, "/trust-marks/issuance-spec/type-subject-create/subjects", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusCreated)
+
+		var created model.TrustMarkSubject
+		if err := json.Unmarshal(respBody, &created); err != nil {
+			t.Fatalf("failed to unmarshal subject create response: %v", err)
+		}
+		if created.EntityID != "subject-create" {
+			t.Fatalf("unexpected subject create response: %+v", created)
+		}
+		createdProfile := requireJSONMap(t, created.AdditionalClaims["profile"], "subject create response additional_claims.profile")
+		if createdProfile["sector"] != "finance" || created.AdditionalClaims["enabled"] != true {
+			t.Fatalf("unexpected subject create additional claims: %+v", created.AdditionalClaims)
+		}
+
+		persisted, err := specStore.GetSubject("type-subject-create", "subject-create")
+		if err != nil {
+			t.Fatalf("failed to reload created subject: %v", err)
+		}
+		persistedProfile := requireJSONMap(t, persisted.AdditionalClaims["profile"], "persisted subject create additional_claims.profile")
+		if persistedProfile["sector"] != "finance" || persisted.AdditionalClaims["enabled"] != true {
+			t.Fatalf("unexpected persisted subject additional claims: %+v", persisted.AdditionalClaims)
+		}
+	})
+
+	t.Run("UpdatePersistsAdditionalClaims", func(t *testing.T) {
+		t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-subject-update"}); err != nil {
+			t.Fatalf("failed to seed subject update spec: %v", err)
+		}
+		if _, err := specStore.CreateSubject("type-subject-update", &model.AddTrustMarkSubject{EntityID: "subject-update", Status: model.StatusActive}); err != nil {
+			t.Fatalf("failed to seed subject: %v", err)
+		}
+
+		body := `{
+			"entity_id": "subject-update",
+			"description": "updated subject",
+			"additional_claims": {
+				"profile": {
+					"sector": "education"
+				},
+				"flags": {
+					"beta": true
+				}
+			}
+		}`
+
+		req := httptest.NewRequest(http.MethodPut, "/trust-marks/issuance-spec/type-subject-update/subjects/subject-update", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusOK)
+
+		var updated model.TrustMarkSubject
+		if err := json.Unmarshal(respBody, &updated); err != nil {
+			t.Fatalf("failed to unmarshal subject update response: %v", err)
+		}
+		updatedFlags := requireJSONMap(t, updated.AdditionalClaims["flags"], "subject update response additional_claims.flags")
+		if updated.Description != "updated subject" || updatedFlags["beta"] != true {
+			t.Fatalf("unexpected subject update response: %+v", updated)
+		}
+
+		persisted, err := specStore.GetSubject("type-subject-update", "subject-update")
+		if err != nil {
+			t.Fatalf("failed to reload updated subject: %v", err)
+		}
+		persistedProfile := requireJSONMap(t, persisted.AdditionalClaims["profile"], "persisted subject update additional_claims.profile")
+		if persisted.Description != "updated subject" || persistedProfile["sector"] != "education" {
+			t.Fatalf("unexpected persisted updated subject: %+v", persisted)
+		}
+	})
+
+	t.Run("PutAdditionalClaimsPersistsStructuredPayload", func(t *testing.T) {
+		t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-subject-put-claims"}); err != nil {
+			t.Fatalf("failed to seed put-additional-claims spec: %v", err)
+		}
+		if _, err := specStore.CreateSubject("type-subject-put-claims", &model.AddTrustMarkSubject{EntityID: "subject-put-claims", Status: model.StatusActive}); err != nil {
+			t.Fatalf("failed to seed put-additional-claims subject: %v", err)
+		}
+
+		body := `{
+			"profile": {
+				"sector": "health"
+			},
+			"enabled": true
+		}`
+
+		req := httptest.NewRequest(http.MethodPut, "/trust-marks/issuance-spec/type-subject-put-claims/subjects/subject-put-claims/additional-claims", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusOK)
+
+		var updatedClaims map[string]any
+		if err := json.Unmarshal(respBody, &updatedClaims); err != nil {
+			t.Fatalf("failed to unmarshal put-additional-claims response: %v", err)
+		}
+		responseProfile := requireJSONMap(t, updatedClaims["profile"], "put-additional-claims response profile")
+		if responseProfile["sector"] != "health" || updatedClaims["enabled"] != true {
+			t.Fatalf("unexpected put-additional-claims response: %+v", updatedClaims)
+		}
+
+		persisted, err := specStore.GetSubject("type-subject-put-claims", "subject-put-claims")
+		if err != nil {
+			t.Fatalf("failed to reload subject after put-additional-claims: %v", err)
+		}
+		persistedProfile := requireJSONMap(t, persisted.AdditionalClaims["profile"], "persisted put-additional-claims profile")
+		if persistedProfile["sector"] != "health" || persisted.AdditionalClaims["enabled"] != true {
+			t.Fatalf("unexpected persisted put-additional-claims payload: %+v", persisted.AdditionalClaims)
+		}
+	})
+
+	t.Run("CopyAdditionalClaimsPersistsMergedPayload", func(t *testing.T) {
+		t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+		if _, err := specStore.Create(&model.AddTrustMarkSpec{
+			TrustMarkType: "type-subject-copy-claims",
+			AdditionalClaims: map[string]any{
+				"spec_object": map[string]any{"source": "spec"},
+				"shared":      map[string]any{"owner": "spec"},
+			},
+		}); err != nil {
+			t.Fatalf("failed to seed copy-additional-claims spec: %v", err)
+		}
+		if _, err := specStore.CreateSubject("type-subject-copy-claims", &model.AddTrustMarkSubject{
+			EntityID: "subject-copy-claims",
+			Status:   model.StatusActive,
+			AdditionalClaims: map[string]any{
+				"shared":       map[string]any{"owner": "subject"},
+				"subject_flag": true,
+			},
+		}); err != nil {
+			t.Fatalf("failed to seed copy-additional-claims subject: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/trust-marks/issuance-spec/type-subject-copy-claims/subjects/subject-copy-claims/additional-claims", http.NoBody)
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, http.StatusOK)
+
+		var mergedClaims map[string]any
+		if err := json.Unmarshal(respBody, &mergedClaims); err != nil {
+			t.Fatalf("failed to unmarshal copy-additional-claims response: %v", err)
+		}
+		mergedSpecObject := requireJSONMap(t, mergedClaims["spec_object"], "copy-additional-claims response spec_object")
+		mergedShared := requireJSONMap(t, mergedClaims["shared"], "copy-additional-claims response shared")
+		if mergedSpecObject["source"] != "spec" || mergedShared["owner"] != "subject" || mergedClaims["subject_flag"] != true {
+			t.Fatalf("unexpected merged claims response: %+v", mergedClaims)
+		}
+
+		persisted, err := specStore.GetSubject("type-subject-copy-claims", "subject-copy-claims")
+		if err != nil {
+			t.Fatalf("failed to reload subject after copy-additional-claims: %v", err)
+		}
+		persistedShared := requireJSONMap(t, persisted.AdditionalClaims["shared"], "persisted copy-additional-claims shared")
+		if persistedShared["owner"] != "subject" || persisted.AdditionalClaims["subject_flag"] != true {
+			t.Fatalf("unexpected persisted merged claims: %+v", persisted.AdditionalClaims)
+		}
 	})
 }
