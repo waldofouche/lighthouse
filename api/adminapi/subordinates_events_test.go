@@ -16,11 +16,11 @@ func (m *mockSubordinateEventStore) Add(event smodel.SubordinateEvent) error {
 	return m.addFn(event)
 }
 
-func (m *mockSubordinateEventStore) GetBySubordinateID(subordinateID uint, opts smodel.EventQueryOpts) ([]smodel.SubordinateEvent, int64, error) {
+func (*mockSubordinateEventStore) GetBySubordinateID(_ uint, _ smodel.EventQueryOpts) ([]smodel.SubordinateEvent, int64, error) {
 	return nil, 0, nil
 }
 
-func (m *mockSubordinateEventStore) DeleteBySubordinateID(subordinateID uint) error {
+func (*mockSubordinateEventStore) DeleteBySubordinateID(_ uint) error {
 	return nil
 }
 
@@ -100,7 +100,7 @@ func TestRecordEvent(t *testing.T) {
 
 		wantErr := errors.New("write failed")
 		store := &mockSubordinateEventStore{
-			addFn: func(event smodel.SubordinateEvent) error {
+			addFn: func(_ smodel.SubordinateEvent) error {
 				return wantErr
 			},
 		}

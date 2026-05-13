@@ -358,7 +358,7 @@ func TestEntityTrustMarksCreate(t *testing.T) {
 		invalidator := &mockTrustMarkConfigInvalidator{}
 		setEntityConfigurationCache(t, cacheValue)
 		app := setupEntityTrustMarksTestApp(&mockPublishedTrustMarksStore{
-			createFn: func(item smodel.AddTrustMark) (*smodel.PublishedTrustMark, error) {
+			createFn: func(_ smodel.AddTrustMark) (*smodel.PublishedTrustMark, error) {
 				t.Fatalf("create should not be called for invalid body")
 				return nil, nil
 			},
@@ -382,7 +382,7 @@ func TestEntityTrustMarksCreate(t *testing.T) {
 		invalidator := &mockTrustMarkConfigInvalidator{}
 		setEntityConfigurationCache(t, cacheValue)
 		app := setupEntityTrustMarksTestApp(&mockPublishedTrustMarksStore{
-			createFn: func(item smodel.AddTrustMark) (*smodel.PublishedTrustMark, error) {
+			createFn: func(_ smodel.AddTrustMark) (*smodel.PublishedTrustMark, error) {
 				return nil, smodel.AlreadyExistsError("trust mark already exists")
 			},
 		}, invalidator)

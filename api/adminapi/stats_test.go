@@ -168,7 +168,7 @@ func TestStatsAPISummary(t *testing.T) {
 		t.Parallel()
 
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getSummaryFn: func(from, to time.Time) (*istats.Summary, error) {
+			getSummaryFn: func(_, _ time.Time) (*istats.Summary, error) {
 				return nil, io.ErrUnexpectedEOF
 			},
 		})
@@ -221,7 +221,7 @@ func TestStatsAPITopEndpoints(t *testing.T) {
 
 		var gotLimit int
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getTopEndpointsFn: func(from, to time.Time, limit int) ([]istats.TopEntry, error) {
+			getTopEndpointsFn: func(_, _ time.Time, limit int) ([]istats.TopEntry, error) {
 				gotLimit = limit
 				return []istats.TopEntry{}, nil
 			},
@@ -244,7 +244,7 @@ func TestStatsAPITopBreakdowns(t *testing.T) {
 
 		var gotLimit int
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getTopUserAgentsFn: func(from, to time.Time, limit int) ([]istats.TopEntry, error) {
+			getTopUserAgentsFn: func(_, _ time.Time, limit int) ([]istats.TopEntry, error) {
 				gotLimit = limit
 				return []istats.TopEntry{{Value: "curl/8.0", Count: 5}}, nil
 			},
@@ -265,7 +265,7 @@ func TestStatsAPITopBreakdowns(t *testing.T) {
 		t.Parallel()
 
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getTopClientsFn: func(from, to time.Time, limit int) ([]istats.TopEntry, error) {
+			getTopClientsFn: func(_, _ time.Time, _ int) ([]istats.TopEntry, error) {
 				return []istats.TopEntry{{Value: "127.0.0.1", Count: 4}}, nil
 			},
 		})
@@ -282,7 +282,7 @@ func TestStatsAPITopBreakdowns(t *testing.T) {
 		t.Parallel()
 
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getTopCountriesFn: func(from, to time.Time, limit int) ([]istats.TopEntry, error) {
+			getTopCountriesFn: func(_, _ time.Time, _ int) ([]istats.TopEntry, error) {
 				return []istats.TopEntry{{Value: "SE", Count: 3}}, nil
 			},
 		})
@@ -301,7 +301,7 @@ func TestStatsAPITopBreakdowns(t *testing.T) {
 		var gotEndpoint string
 		var gotLimit int
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getTopQueryParamsFn: func(from, to time.Time, endpoint string, limit int) ([]istats.TopEntry, error) {
+			getTopQueryParamsFn: func(_, _ time.Time, endpoint string, limit int) ([]istats.TopEntry, error) {
 				gotEndpoint = endpoint
 				gotLimit = limit
 				return []istats.TopEntry{{Value: "sub=https://rp.example", Count: 7}}, nil
@@ -329,7 +329,7 @@ func TestStatsAPITimeSeriesLatencyAndDaily(t *testing.T) {
 		var gotEndpoint string
 		var gotInterval istats.Interval
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getTimeSeriesFn: func(from, to time.Time, endpoint string, interval istats.Interval) ([]istats.TimeSeriesPoint, error) {
+			getTimeSeriesFn: func(_, _ time.Time, endpoint string, interval istats.Interval) ([]istats.TimeSeriesPoint, error) {
 				gotEndpoint = endpoint
 				gotInterval = interval
 				return []istats.TimeSeriesPoint{{Timestamp: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC), RequestCount: 12}}, nil
@@ -352,7 +352,7 @@ func TestStatsAPITimeSeriesLatencyAndDaily(t *testing.T) {
 
 		var gotInterval istats.Interval
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getTimeSeriesFn: func(from, to time.Time, endpoint string, interval istats.Interval) ([]istats.TimeSeriesPoint, error) {
+			getTimeSeriesFn: func(_, _ time.Time, _ string, interval istats.Interval) ([]istats.TimeSeriesPoint, error) {
 				gotInterval = interval
 				return []istats.TimeSeriesPoint{}, nil
 			},
@@ -371,7 +371,7 @@ func TestStatsAPITimeSeriesLatencyAndDaily(t *testing.T) {
 
 		var gotEndpoint string
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			getLatencyFn: func(from, to time.Time, endpoint string) (*istats.LatencyStats, error) {
+			getLatencyFn: func(_, _ time.Time, endpoint string) (*istats.LatencyStats, error) {
 				gotEndpoint = endpoint
 				return &istats.LatencyStats{P95Ms: 120, AvgMs: 45.5}, nil
 			},
@@ -422,11 +422,11 @@ func TestStatsAPIExport(t *testing.T) {
 		var jsonCalls int
 		var csvCalls int
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			exportCSVFn: func(from, to time.Time, w io.Writer) error {
+			exportCSVFn: func(_, _ time.Time, _ io.Writer) error {
 				csvCalls++
 				return nil
 			},
-			exportJSONFn: func(from, to time.Time, w io.Writer) error {
+			exportJSONFn: func(_, _ time.Time, w io.Writer) error {
 				jsonCalls++
 				_, err := io.WriteString(w, `{"ok":true}`)
 				return err
@@ -456,12 +456,12 @@ func TestStatsAPIExport(t *testing.T) {
 		var jsonCalls int
 		var csvCalls int
 		app := setupStatsTestApp(t, &mockStatsStorageBackend{
-			exportCSVFn: func(from, to time.Time, w io.Writer) error {
+			exportCSVFn: func(_, _ time.Time, w io.Writer) error {
 				csvCalls++
 				_, err := io.WriteString(w, "endpoint,count\nfetch,9\n")
 				return err
 			},
-			exportJSONFn: func(from, to time.Time, w io.Writer) error {
+			exportJSONFn: func(_, _ time.Time, _ io.Writer) error {
 				jsonCalls++
 				return nil
 			},

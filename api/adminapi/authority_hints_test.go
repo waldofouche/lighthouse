@@ -165,7 +165,7 @@ func TestAuthorityHintsCreate(t *testing.T) {
 	t.Run("InvalidBodyKeepsCache", func(t *testing.T) {
 		setEntityConfigurationCache(t, cacheValue)
 		app := setupAuthorityHintsTestApp(t, &mockAuthorityHintsStore{
-			createFn: func(item smodel.AddAuthorityHint) (*smodel.AuthorityHint, error) {
+			createFn: func(_ smodel.AddAuthorityHint) (*smodel.AuthorityHint, error) {
 				t.Fatalf("create should not be called for invalid body")
 				return nil, nil
 			},
@@ -185,7 +185,7 @@ func TestAuthorityHintsCreate(t *testing.T) {
 	t.Run("ConflictKeepsCache", func(t *testing.T) {
 		setEntityConfigurationCache(t, cacheValue)
 		app := setupAuthorityHintsTestApp(t, &mockAuthorityHintsStore{
-			createFn: func(item smodel.AddAuthorityHint) (*smodel.AuthorityHint, error) {
+			createFn: func(_ smodel.AddAuthorityHint) (*smodel.AuthorityHint, error) {
 				return nil, smodel.AlreadyExistsError("duplicate authority hint")
 			},
 		})
