@@ -74,6 +74,22 @@ func TestEntityConfigurationCacheInvalidationMiddleware(t *testing.T) {
 		requireStatus(t, resp, http.StatusBadRequest)
 		requireEntityConfigurationCache(t, true, cacheValue)
 	})
+
+	// TODO: Currently there are no redirects. If we add any in the future, we should verify that they do not clear the cache.
+	// t.Run("RedirectDoesNotClearCache", func(t *testing.T) {
+	// 	setEntityConfigurationCache(t, cacheValue)
+
+	// 	app := fiber.New()
+	// 	app.Post("/entity-config", entityConfigurationCacheInvalidationMiddleware, func(c *fiber.Ctx) error {
+	// 		return c.Redirect("/other", fiber.StatusMovedPermanently)
+	// 	})
+
+	// 	req := httptest.NewRequest(http.MethodPost, "/entity-config", http.NoBody)
+	// 	resp, _ := doRequest(t, app, req)
+
+	// 	requireStatus(t, resp, fiber.StatusMovedPermanently)
+	// 	requireEntityConfigurationCache(t, true, cacheValue)
+	// })
 }
 
 // TestSubordinateStatementsCacheInvalidationMiddleware must NOT use t.Parallel().
