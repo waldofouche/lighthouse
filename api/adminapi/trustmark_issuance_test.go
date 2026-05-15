@@ -1057,7 +1057,7 @@ func TestTrustMarkSpecHandlers_RealStoragePersistence(t *testing.T) {
 
 	t.Run("CreatePersistsStructuredFields", func(t *testing.T) {
 		t.Parallel()
-		app, specStore := setupRealTrustMarkIssuanceApp(t)
+			app, specStore := setupRealTrustMarkIssuanceApp(t)
 
 		body := `{
 			"trust_mark_type": "type-real-create",
@@ -1121,7 +1121,7 @@ func TestTrustMarkSpecHandlers_RealStoragePersistence(t *testing.T) {
 
 	t.Run("UpdatePersistsStructuredFields", func(t *testing.T) {
 		t.Parallel()
-		app, specStore := setupRealTrustMarkIssuanceApp(t)
+			app, specStore := setupRealTrustMarkIssuanceApp(t)
 
 		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-real-update-initial"}); err != nil {
 			t.Fatalf("failed to seed spec: %v", err)
@@ -1180,7 +1180,7 @@ func TestTrustMarkSpecHandlers_RealStoragePersistence(t *testing.T) {
 
 	t.Run("PatchPersistsStructuredFields", func(t *testing.T) {
 		t.Parallel()
-		app, specStore := setupRealTrustMarkIssuanceApp(t)
+			app, specStore := setupRealTrustMarkIssuanceApp(t)
 
 		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-real-patch"}); err != nil {
 			t.Fatalf("failed to seed patch spec: %v", err)
@@ -1239,7 +1239,7 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 
 	t.Run("CreatePersistsAdditionalClaims", func(t *testing.T) {
 		t.Parallel()
-		app, specStore := setupRealTrustMarkIssuanceApp(t)
+			app, specStore := setupRealTrustMarkIssuanceApp(t)
 
 		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-subject-create"}); err != nil {
 			t.Fatalf("failed to seed subject spec: %v", err)
@@ -1285,7 +1285,7 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 
 	t.Run("UpdatePersistsAdditionalClaims", func(t *testing.T) {
 		t.Parallel()
-		app, specStore := setupRealTrustMarkIssuanceApp(t)
+			app, specStore := setupRealTrustMarkIssuanceApp(t)
 
 		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-subject-update"}); err != nil {
 			t.Fatalf("failed to seed subject update spec: %v", err)
@@ -1334,7 +1334,7 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 
 	t.Run("PutAdditionalClaimsPersistsStructuredPayload", func(t *testing.T) {
 		t.Parallel()
-		app, specStore := setupRealTrustMarkIssuanceApp(t)
+			app, specStore := setupRealTrustMarkIssuanceApp(t)
 
 		if _, err := specStore.Create(&model.AddTrustMarkSpec{TrustMarkType: "type-subject-put-claims"}); err != nil {
 			t.Fatalf("failed to seed put-additional-claims spec: %v", err)
@@ -1377,7 +1377,7 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 
 	t.Run("CopyAdditionalClaimsPersistsMergedPayload", func(t *testing.T) {
 		t.Parallel()
-		app, specStore := setupRealTrustMarkIssuanceApp(t)
+			app, specStore := setupRealTrustMarkIssuanceApp(t)
 
 		if _, err := specStore.Create(&model.AddTrustMarkSpec{
 			TrustMarkType: "type-subject-copy-claims",
@@ -1423,4 +1423,64 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 			t.Fatalf("unexpected persisted merged claims: %+v", persisted.AdditionalClaims)
 		}
 	})
+}
+
+func TestCopyAdditionalClaims_MemoryIsolation(t *testing.T) {
+	t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+	// 1. Create a Trust Mark Spec with nested map additional claims
+	specType := "type-memory-isolation"
+	subjectID := "subject-memory-isolation"
+
+	_, err := specStore.Create(&model.AddTrustMarkSpec{
+		TrustMarkType: specType,
+		AdditionalClaims: map[string]any{
+			"profile": map[string]any{
+				"tier": "gold",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed spec: %v", err)
+	}
+
+	_, err = specStore.CreateSubject(specType, &model.AddTrustMarkSubject{
+		EntityID: subjectID,
+		Status:   model.StatusActive,
+	})
+	if err != nil {
+		t.Fatalf("failed to seed subject: %v", err)
+	}
+
+	// 2. Hit the endpoint that copies/merges these claims into a subject
+	req := httptest.NewRequest(http.MethodPost, "/trust-marks/issuance-spec/"+specType+"/subjects/"+subjectID+"/additional-claims", http.NoBody)
+	resp, _ := doRequest(t, app, req)
+	requireStatus(t, resp, http.StatusOK)
+
+	// 3. Mutate the resulting merged claims using a PUT request to the subject
+	body := `{
+		"profile": {
+			"tier": "silver"
+		}
+	}`
+	req = httptest.NewRequest(http.MethodPut, "/trust-marks/issuance-spec/"+specType+"/subjects/"+subjectID+"/additional-claims", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ = doRequest(t, app, req)
+	requireStatus(t, resp, http.StatusOK)
+
+	// 4. CRITICAL ASSERTION: Re-read the original Spec and assert that AdditionalClaims["profile"]["tier"] is STILL "gold"
+	spec, err := specStore.Get(specType)
+	if err != nil {
+		t.Fatalf("failed to retrieve spec: %v", err)
+	}
+
+	profile, ok := spec.AdditionalClaims["profile"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected profile to be map[string]any, got %T", spec.AdditionalClaims["profile"])
+	}
+
+	if profile["tier"] != "gold" {
+		t.Errorf("Memory isolation failed: expected spec tier to be 'gold', got %v", profile["tier"])
+	}
 }
