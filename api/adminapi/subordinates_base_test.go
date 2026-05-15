@@ -308,6 +308,32 @@ func TestPostSubordinates(t *testing.T) {
 
 		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
+
+	t.Run("DuplicateEntityID_Returns409", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateBaseApp(t)
+
+		// 1. Create the initial subordinate
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://conflict.example.org",
+				Status:   model.StatusPending,
+			},
+		})
+
+		// 2. Attempt to create a second one with the same entity_id
+		body := `{
+			"entity_id": "https://conflict.example.org",
+			"status": "pending",
+			"description": "This should conflict"
+		}`
+		req := httptest.NewRequest("POST", "/subordinates", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		// 3. CRITICAL ASSERTION
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
+	})
 }
 
 // --- GET /subordinates/:subordinateID TESTS ---
