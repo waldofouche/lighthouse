@@ -156,8 +156,12 @@ func TestTrustMarkSpecHandlers_List(t *testing.T) {
 		resp, body := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(body), "type1") {
-			t.Errorf("Expected response to contain 'type1', got %s", string(body))
+		var specs []model.TrustMarkSpec
+		if err := json.Unmarshal(body, &specs); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if len(specs) != 1 || specs[0].TrustMarkType != "type1" {
+			t.Errorf("expected 1 spec with TrustMarkType 'type1', got %+v", specs)
 		}
 	})
 
@@ -194,8 +198,12 @@ func TestTrustMarkSpecHandlers_Create(t *testing.T) {
 		resp, respBody := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusCreated)
-		if !strings.Contains(string(respBody), "type1") {
-			t.Errorf("Expected response to contain 'type1', got %s", string(respBody))
+		var spec model.TrustMarkSpec
+		if err := json.Unmarshal(respBody, &spec); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if spec.TrustMarkType != "type1" {
+			t.Errorf("expected TrustMarkType 'type1', got %q", spec.TrustMarkType)
 		}
 	})
 
@@ -269,8 +277,12 @@ func TestTrustMarkSpecHandlers_Get(t *testing.T) {
 		resp, body := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(body), "type1") {
-			t.Errorf("Expected response to contain 'type1', got %s", string(body))
+		var spec model.TrustMarkSpec
+		if err := json.Unmarshal(body, &spec); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if spec.TrustMarkType != "type1" {
+			t.Errorf("expected TrustMarkType 'type1', got %q", spec.TrustMarkType)
 		}
 	})
 
@@ -322,8 +334,12 @@ func TestTrustMarkSpecHandlers_Update(t *testing.T) {
 		resp, respBody := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(respBody), "type2") {
-			t.Errorf("Expected response to contain 'type2', got %s", string(respBody))
+		var spec model.TrustMarkSpec
+		if err := json.Unmarshal(respBody, &spec); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if spec.TrustMarkType != "type2" {
+			t.Errorf("expected TrustMarkType 'type2', got %q", spec.TrustMarkType)
 		}
 	})
 
@@ -399,8 +415,12 @@ func TestTrustMarkSpecHandlers_Patch(t *testing.T) {
 		resp, respBody := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(respBody), "type3") {
-			t.Errorf("Expected response to contain 'type3', got %s", string(respBody))
+		var spec model.TrustMarkSpec
+		if err := json.Unmarshal(respBody, &spec); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if spec.TrustMarkType != "type3" {
+			t.Errorf("expected TrustMarkType 'type3', got %q", spec.TrustMarkType)
 		}
 	})
 
@@ -511,8 +531,12 @@ func TestTrustMarkSubjectHandlers_List(t *testing.T) {
 		resp, body := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(body), "sub1") {
-			t.Errorf("Expected response to contain 'sub1'")
+		var subjects []model.TrustMarkSubject
+		if err := json.Unmarshal(body, &subjects); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if len(subjects) != 1 || subjects[0].EntityID != "sub1" {
+			t.Errorf("expected 1 subject with EntityID 'sub1', got %+v", subjects)
 		}
 	})
 
@@ -559,8 +583,12 @@ func TestTrustMarkSubjectHandlers_Create(t *testing.T) {
 		resp, respBody := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusCreated)
-		if !strings.Contains(string(respBody), "sub1") {
-			t.Errorf("Expected response to contain 'sub1'")
+		var subject model.TrustMarkSubject
+		if err := json.Unmarshal(respBody, &subject); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if subject.EntityID != "sub1" {
+			t.Errorf("expected EntityID 'sub1', got %q", subject.EntityID)
 		}
 	})
 
@@ -618,8 +646,12 @@ func TestTrustMarkSubjectHandlers_Get(t *testing.T) {
 		resp, body := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(body), "sub1") {
-			t.Errorf("Expected response to contain 'sub1'")
+		var subject model.TrustMarkSubject
+		if err := json.Unmarshal(body, &subject); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if subject.EntityID != "sub1" {
+			t.Errorf("expected EntityID 'sub1', got %q", subject.EntityID)
 		}
 	})
 
@@ -671,8 +703,12 @@ func TestTrustMarkSubjectHandlers_Update(t *testing.T) {
 		resp, respBody := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(respBody), "sub2") {
-			t.Errorf("Expected response to contain 'sub2'")
+		var subject model.TrustMarkSubject
+		if err := json.Unmarshal(respBody, &subject); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if subject.EntityID != "sub2" {
+			t.Errorf("expected EntityID 'sub2', got %q", subject.EntityID)
 		}
 	})
 
@@ -795,8 +831,12 @@ func TestTrustMarkSubjectHandlers_UpdateStatus(t *testing.T) {
 		resp, body := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(body), "inactive") {
-			t.Errorf("Expected response to contain 'inactive'")
+		var subject model.TrustMarkSubject
+		if err := json.Unmarshal(body, &subject); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if subject.Status != model.StatusInactive {
+			t.Errorf("expected Status 'inactive', got %q", subject.Status)
 		}
 	})
 
@@ -870,8 +910,12 @@ func TestTrustMarkSubjectHandlers_AdditionalClaims(t *testing.T) {
 		resp, body := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(body), "claim1") {
-			t.Errorf("Expected response to contain 'claim1'")
+		var claims map[string]any
+		if err := json.Unmarshal(body, &claims); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if claims["claim1"] != "val1" {
+			t.Errorf("expected claim1='val1', got %+v", claims)
 		}
 	})
 
@@ -926,8 +970,12 @@ func TestTrustMarkSubjectHandlers_AdditionalClaims(t *testing.T) {
 		resp, respBody := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(respBody), "claim1") {
-			t.Errorf("Expected response to contain 'claim1'")
+		var claims map[string]any
+		if err := json.Unmarshal(respBody, &claims); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if claims["claim1"] != "val1" {
+			t.Errorf("expected claim1='val1', got %+v", claims)
 		}
 	})
 
@@ -961,8 +1009,12 @@ func TestTrustMarkSubjectHandlers_AdditionalClaims(t *testing.T) {
 		resp, respBody := doRequest(t, app, req)
 
 		requireStatus(t, resp, http.StatusOK)
-		if !strings.Contains(string(respBody), "spec_claim") || !strings.Contains(string(respBody), "subj_claim") {
-			t.Errorf("Expected response to contain both claims, got %s", string(respBody))
+		var claims map[string]any
+		if err := json.Unmarshal(respBody, &claims); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if claims["spec_claim"] != "spec_val" || claims["subj_claim"] != "subj_val" {
+			t.Errorf("expected both claims, got %+v", claims)
 		}
 	})
 
