@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	oidfed "github.com/go-oidfed/lib"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/go-oidfed/lighthouse/storage"
@@ -174,17 +173,9 @@ func TestGetSubordinates(t *testing.T) {
 		app, _ := setupSubordinateBaseApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates?status=unknown_status", http.NoBody)
-		resp, body := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
-
-		var oidErr oidfed.Error
-		if err := json.Unmarshal(body, &oidErr); err != nil {
-			t.Fatalf("Failed to parse response: %v", err)
-		}
-		if oidErr.Error != "invalid_request" {
-			t.Errorf("Expected 'invalid_request' error, got %q", oidErr.Error)
-		}
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 }
 
@@ -277,9 +268,9 @@ func TestPostSubordinates(t *testing.T) {
 		body := `{"status": "pending"}`
 		req := httptest.NewRequest("POST", "/subordinates", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 
 	t.Run("InvalidStatus", func(t *testing.T) {
@@ -289,9 +280,9 @@ func TestPostSubordinates(t *testing.T) {
 		body := `{"entity_id": "https://sub.example.org", "status": "unknown"}`
 		req := httptest.NewRequest("POST", "/subordinates", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 
 	t.Run("ActiveWithoutKeys", func(t *testing.T) {
@@ -302,9 +293,9 @@ func TestPostSubordinates(t *testing.T) {
 		body := `{"entity_id": "https://sub.example.org", "status": "active"}`
 		req := httptest.NewRequest("POST", "/subordinates", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -313,9 +304,9 @@ func TestPostSubordinates(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/subordinates", strings.NewReader(`not valid json`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 }
 
@@ -461,9 +452,9 @@ func TestPutSubordinateByID(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d", saved.ID), strings.NewReader(`not json`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 }
 
@@ -596,9 +587,9 @@ func TestUpdateSubordinateStatus(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/status", saved.ID), strings.NewReader("  "))
 		req.Header.Set("Content-Type", "text/plain")
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 
 	t.Run("InvalidStatus", func(t *testing.T) {
@@ -618,9 +609,9 @@ func TestUpdateSubordinateStatus(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/status", saved.ID), strings.NewReader("unknown-status"))
 		req.Header.Set("Content-Type", "text/plain")
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 
 	t.Run("ActiveWithoutKeys", func(t *testing.T) {
@@ -640,9 +631,9 @@ func TestUpdateSubordinateStatus(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/status", saved.ID), strings.NewReader("active"))
 		req.Header.Set("Content-Type", "text/plain")
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -746,17 +737,23 @@ func TestGetSubordinateHistory(t *testing.T) {
 
 		requireStatus(t, resp, http.StatusOK)
 
-		var result map[string]any
+		var result struct {
+			Events     []eventResponse `json:"events"`
+			Pagination struct {
+				Total  int64 `json:"total"`
+				Limit  int   `json:"limit"`
+				Offset int   `json:"offset"`
+			} `json:"pagination"`
+		}
 		if err := json.Unmarshal(body, &result); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
 
-		pag := result["pagination"].(map[string]any)
-		if int(pag["limit"].(float64)) != 1 {
-			t.Errorf("Expected limit 1, got %v", pag["limit"])
+		if result.Pagination.Limit != 1 {
+			t.Errorf("Expected limit 1, got %d", result.Pagination.Limit)
 		}
-		if int(pag["offset"].(float64)) != 1 {
-			t.Errorf("Expected offset 1, got %v", pag["offset"])
+		if result.Pagination.Offset != 1 {
+			t.Errorf("Expected offset 1, got %d", result.Pagination.Offset)
 		}
 	})
 
@@ -784,8 +781,8 @@ func TestGetSubordinateHistory(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?limit=abc", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, respBody := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
 }
