@@ -79,22 +79,37 @@ type mockKeyValueStore struct {
 }
 
 func (m *mockKeyValueStore) Get(scope, key string) (datatypes.JSON, error) {
+	if m.getFn == nil {
+		return nil, nil
+	}
 	return m.getFn(scope, key)
 }
 
 func (m *mockKeyValueStore) GetAs(scope, key string, out any) (bool, error) {
+	if m.getAsFn == nil {
+		return false, nil
+	}
 	return m.getAsFn(scope, key, out)
 }
 
 func (m *mockKeyValueStore) Set(scope, key string, value datatypes.JSON) error {
+	if m.setFn == nil {
+		return nil
+	}
 	return m.setFn(scope, key, value)
 }
 
 func (m *mockKeyValueStore) SetAny(scope, key string, v any) error {
+	if m.setAnyFn == nil {
+		return nil
+	}
 	return m.setAnyFn(scope, key, v)
 }
 
 func (m *mockKeyValueStore) Delete(scope, key string) error {
+	if m.deleteFn == nil {
+		return nil
+	}
 	return m.deleteFn(scope, key)
 }
 
