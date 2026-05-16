@@ -629,6 +629,36 @@ func TestTrustMarkSubjectHandlers_Create(t *testing.T) {
 
 		assertErrorResponse(t, resp, body, http.StatusInternalServerError, "server_error")
 	})
+
+	t.Run("AlreadyExists", func(t *testing.T) {
+		t.Parallel()
+		app, specStore := setupRealTrustMarkIssuanceApp(t)
+
+		specType := "type-already-exists"
+		subjectID := "subject-already-exists"
+
+		_, err := specStore.Create(&model.AddTrustMarkSpec{
+			TrustMarkType: specType,
+		})
+		if err != nil {
+			t.Fatalf("failed to seed spec: %v", err)
+		}
+
+		_, err = specStore.CreateSubject(specType, &model.AddTrustMarkSubject{
+			EntityID: subjectID,
+			Status:   model.StatusActive,
+		})
+		if err != nil {
+			t.Fatalf("failed to seed subject: %v", err)
+		}
+
+		body := `{"entity_id": "` + subjectID + `", "status": "pending"}`
+		req := httptest.NewRequest("POST", "/trust-marks/issuance-spec/"+specType+"/subjects", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
+	})
 }
 
 func TestTrustMarkSubjectHandlers_Get(t *testing.T) {

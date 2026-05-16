@@ -906,4 +906,18 @@ func TestGetSubordinateHistory(t *testing.T) {
 
 		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
+
+	t.Run("InvalidTo_Unparseable", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateBaseApp(t)
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{EntityID: "https://to-abc.example.org"},
+		})
+		saved, _ := backends.Subordinates.Get("https://to-abc.example.org")
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?to=abc", saved.ID), http.NoBody)
+		resp, respBody := doRequest(t, app, req)
+
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+	})
 }
