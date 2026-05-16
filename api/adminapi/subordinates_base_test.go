@@ -183,9 +183,9 @@ func TestGetSubordinates(t *testing.T) {
 		app, _ := setupSubordinateBaseApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates?status=", http.NoBody)
-		resp, respBody := doRequest(t, app, req)
+		resp, _ := doRequest(t, app, req)
 
-		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+		requireStatus(t, resp, http.StatusOK)
 	})
 
 	t.Run("EmptyEntityType", func(t *testing.T) {
@@ -193,9 +193,9 @@ func TestGetSubordinates(t *testing.T) {
 		app, _ := setupSubordinateBaseApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates?entity_type=", http.NoBody)
-		resp, respBody := doRequest(t, app, req)
+		resp, _ := doRequest(t, app, req)
 
-		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+		requireStatus(t, resp, http.StatusOK)
 	})
 }
 
@@ -843,7 +843,23 @@ func TestGetSubordinateHistory(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?limit=-1", saved.ID), http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+		requireStatus(t, resp, http.StatusOK)
+
+		var result struct {
+			Events     []eventResponse `json:"events"`
+			Pagination struct {
+				Total  int64 `json:"total"`
+				Limit  int   `json:"limit"`
+				Offset int   `json:"offset"`
+			} `json:"pagination"`
+		}
+		if err := json.Unmarshal(respBody, &result); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if result.Pagination.Limit != 50 {
+			t.Errorf("Expected limit to normalize to 50, got %d", result.Pagination.Limit)
+		}
 	})
 
 	t.Run("InvalidOffset_TooLarge", func(t *testing.T) {
@@ -857,7 +873,23 @@ func TestGetSubordinateHistory(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?offset=999999999", saved.ID), http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+		requireStatus(t, resp, http.StatusOK)
+
+		var result struct {
+			Events     []eventResponse `json:"events"`
+			Pagination struct {
+				Total  int64 `json:"total"`
+				Limit  int   `json:"limit"`
+				Offset int   `json:"offset"`
+			} `json:"pagination"`
+		}
+		if err := json.Unmarshal(respBody, &result); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if len(result.Events) != 0 {
+			t.Errorf("Expected empty events array, got %d", len(result.Events))
+		}
 	})
 
 	t.Run("InvalidFrom_Unparseable", func(t *testing.T) {

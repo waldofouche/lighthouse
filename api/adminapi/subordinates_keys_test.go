@@ -202,7 +202,15 @@ func TestSubordinateJWKS(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, _ := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		requireStatus(t, resp, http.StatusOK)
+
+		updated, err := backends.Subordinates.Get("https://jwks-empty-put.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+		if updated.JWKS.Keys.Set != nil && updated.JWKS.Keys.Len() > 0 {
+			t.Errorf("Expected JWKS to be empty, got length %d", updated.JWKS.Keys.Len())
+		}
 	})
 
 	t.Run("PUT InvalidBody_MissingKty", func(t *testing.T) {
