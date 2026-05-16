@@ -120,7 +120,7 @@ func TestEntityTrustMarksRealStoragePersistence(t *testing.T) {
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, respBody, http.StatusCreated)
 
 		var created smodel.PublishedTrustMark
 		if err := json.Unmarshal(respBody, &created); err != nil {
@@ -184,7 +184,7 @@ func TestEntityTrustMarksRealStoragePersistence(t *testing.T) {
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var updated smodel.PublishedTrustMark
 		if err := json.Unmarshal(respBody, &updated); err != nil {
@@ -244,7 +244,7 @@ func TestEntityTrustMarksRealStoragePersistence(t *testing.T) {
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var patched smodel.PublishedTrustMark
 		if err := json.Unmarshal(respBody, &patched); err != nil {
@@ -287,7 +287,7 @@ func TestEntityTrustMarksList(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/entity-configuration/trust-marks/", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var got []smodel.PublishedTrustMark
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -308,8 +308,8 @@ func TestEntityTrustMarksList(t *testing.T) {
 		}, nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/entity-configuration/trust-marks/", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusInternalServerError)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusInternalServerError)
 	})
 }
 
@@ -336,7 +336,7 @@ func TestEntityTrustMarksCreate(t *testing.T) {
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 
 		var got smodel.PublishedTrustMark
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -370,8 +370,8 @@ func TestEntityTrustMarksCreate(t *testing.T) {
 			strings.NewReader(`{"trust_mark_type":`),
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusBadRequest)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusBadRequest)
 		if invalidator.calls != 0 {
 			t.Fatalf("expected invalidator to stay at 0 calls, got %d", invalidator.calls)
 		}
@@ -393,8 +393,8 @@ func TestEntityTrustMarksCreate(t *testing.T) {
 			strings.NewReader(`{"trust_mark_type":"https://tm.example/type"}`),
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusConflict)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusConflict)
 		if invalidator.calls != 0 {
 			t.Fatalf("expected invalidator to stay at 0 calls, got %d", invalidator.calls)
 		}
@@ -419,7 +419,7 @@ func TestEntityTrustMarksGet(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/entity-configuration/trust-marks/3", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var got smodel.PublishedTrustMark
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -440,8 +440,8 @@ func TestEntityTrustMarksGet(t *testing.T) {
 		}, nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/entity-configuration/trust-marks/3", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusInternalServerError)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusInternalServerError)
 	})
 }
 
@@ -470,7 +470,7 @@ func TestEntityTrustMarksUpdate(t *testing.T) {
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var got smodel.PublishedTrustMark
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -506,8 +506,8 @@ func TestEntityTrustMarksUpdate(t *testing.T) {
 			strings.NewReader(`{"trust_mark_type":"https://tm.example/updated"}`),
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 		if invalidator.calls != 0 {
 			t.Fatalf("expected invalidator to stay at 0 calls, got %d", invalidator.calls)
 		}
@@ -540,7 +540,7 @@ func TestEntityTrustMarksPatch(t *testing.T) {
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var got smodel.PublishedTrustMark
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -579,8 +579,8 @@ func TestEntityTrustMarksPatch(t *testing.T) {
 			strings.NewReader(`{"refresh":true}`),
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusBadRequest)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusBadRequest)
 		if invalidator.calls != 0 {
 			t.Fatalf("expected invalidator to stay at 0 calls, got %d", invalidator.calls)
 		}
@@ -605,8 +605,8 @@ func TestEntityTrustMarksDelete(t *testing.T) {
 		}, invalidator)
 
 		req := httptest.NewRequest(http.MethodDelete, "/entity-configuration/trust-marks/14", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNoContent)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 		if gotID != "14" {
 			t.Fatalf("expected trust mark id %q, got %q", "14", gotID)
 		}
@@ -626,8 +626,8 @@ func TestEntityTrustMarksDelete(t *testing.T) {
 		}, invalidator)
 
 		req := httptest.NewRequest(http.MethodDelete, "/entity-configuration/trust-marks/missing", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 		if invalidator.calls != 0 {
 			t.Fatalf("expected invalidator to stay at 0 calls, got %d", invalidator.calls)
 		}

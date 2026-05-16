@@ -52,7 +52,7 @@ func TestListUsers(t *testing.T) {
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "GET", "/api/v1/admin/users/", nil)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var list []any
 		if err := json.Unmarshal(body, &list); err != nil {
@@ -76,7 +76,7 @@ func TestListUsers(t *testing.T) {
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "GET", "/api/v1/admin/users/", nil)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var list []any
 		if err := json.Unmarshal(body, &list); err != nil {
@@ -97,7 +97,7 @@ func TestListUsers(t *testing.T) {
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "GET", "/api/v1/admin/users/", nil)
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusInternalServerError)
+		assertStatus(t, resp, body, http.StatusInternalServerError)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -133,7 +133,7 @@ func TestCreateUser(t *testing.T) {
 			"display_name": "Alice",
 		})
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -155,7 +155,7 @@ func TestCreateUser(t *testing.T) {
 			"password": "strongpass",
 		})
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, body, http.StatusBadRequest)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -174,7 +174,7 @@ func TestCreateUser(t *testing.T) {
 			"username": "alice",
 		})
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, body, http.StatusBadRequest)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -190,8 +190,8 @@ func TestCreateUser(t *testing.T) {
 		store := &mockUsersStore{}
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "POST", "/api/v1/admin/users/", map[string]string{})
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusBadRequest)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("InvalidJSON", func(t *testing.T) {
@@ -201,8 +201,8 @@ func TestCreateUser(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/api/v1/admin/users/", bytes.NewReader([]byte("not json")))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusBadRequest)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("ConflictAlreadyExists", func(t *testing.T) {
@@ -218,7 +218,7 @@ func TestCreateUser(t *testing.T) {
 			"password": "strongpass",
 		})
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusConflict)
+		assertStatus(t, resp, body, http.StatusConflict)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -242,7 +242,7 @@ func TestCreateUser(t *testing.T) {
 			"password": "strongpass",
 		})
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusInternalServerError)
+		assertStatus(t, resp, body, http.StatusInternalServerError)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -274,7 +274,7 @@ func TestGetUser(t *testing.T) {
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "GET", "/api/v1/admin/users/alice", nil)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -298,7 +298,7 @@ func TestGetUser(t *testing.T) {
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "GET", "/api/v1/admin/users/unknown", nil)
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, body, http.StatusNotFound)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -319,7 +319,7 @@ func TestGetUser(t *testing.T) {
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "GET", "/api/v1/admin/users/alice", nil)
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusInternalServerError)
+		assertStatus(t, resp, body, http.StatusInternalServerError)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -357,7 +357,7 @@ func TestUpdateUser(t *testing.T) {
 			"display_name": "Alice Updated",
 		})
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -387,8 +387,8 @@ func TestUpdateUser(t *testing.T) {
 		req := newJSONRequest(t, "PUT", "/api/v1/admin/users/alice", map[string]string{
 			"password": "newpass123",
 		})
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 		if !updateCalled {
 			t.Error("Expected Update to be called")
 		}
@@ -413,7 +413,7 @@ func TestUpdateUser(t *testing.T) {
 			"disabled": true,
 		})
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -436,7 +436,7 @@ func TestUpdateUser(t *testing.T) {
 			"display_name": "Test",
 		})
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, body, http.StatusNotFound)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -454,8 +454,8 @@ func TestUpdateUser(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/api/v1/admin/users/alice", bytes.NewReader([]byte("not json")))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusBadRequest)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("InternalError", func(t *testing.T) {
@@ -470,7 +470,7 @@ func TestUpdateUser(t *testing.T) {
 			"display_name": "Test",
 		})
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusInternalServerError)
+		assertStatus(t, resp, body, http.StatusInternalServerError)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -500,8 +500,8 @@ func TestDeleteUser(t *testing.T) {
 		}
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "DELETE", "/api/v1/admin/users/alice", nil)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNoContent)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		if !deleteCalled {
 			t.Error("Expected Delete to be called")
@@ -518,7 +518,7 @@ func TestDeleteUser(t *testing.T) {
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "DELETE", "/api/v1/admin/users/unknown", nil)
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, body, http.StatusNotFound)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -539,7 +539,7 @@ func TestDeleteUser(t *testing.T) {
 		app := setupUsersApp(t, store)
 		req := newJSONRequest(t, "DELETE", "/api/v1/admin/users/alice", nil)
 		resp, body := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusInternalServerError)
+		assertStatus(t, resp, body, http.StatusInternalServerError)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -577,8 +577,8 @@ func TestUsersWithAuthMiddleware(t *testing.T) {
 		}
 		app := newAppWithAuth(store)
 		req := newJSONRequest(t, "GET", "/api/v1/admin/users/", nil)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 	})
 
 	t.Run("WithUsers_RequiresAuth", func(t *testing.T) {
@@ -590,8 +590,8 @@ func TestUsersWithAuthMiddleware(t *testing.T) {
 		}
 		app := newAppWithAuth(store)
 		req := newJSONRequest(t, "GET", "/api/v1/admin/users/", nil)
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusUnauthorized)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusUnauthorized)
 	})
 
 	t.Run("WithUsers_AuthenticatedAccess", func(t *testing.T) {
@@ -614,8 +614,8 @@ func TestUsersWithAuthMiddleware(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/api/v1/admin/users/", http.NoBody)
 		req.Header.Set("Authorization", basicAuthHeader("admin", "pass"))
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 	})
 
 	t.Run("WithUsers_CreateRequiresAuth", func(t *testing.T) {
@@ -630,7 +630,7 @@ func TestUsersWithAuthMiddleware(t *testing.T) {
 			"username": "newuser",
 			"password": "pass",
 		})
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusUnauthorized)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusUnauthorized)
 	})
 }

@@ -44,7 +44,7 @@ func TestActorMiddleware_Defaults(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		// With basic_auth as default source and auth username set, actor should be "admin"
 		if string(body) != `{"actor":"admin"}` {
@@ -58,7 +58,7 @@ func TestActorMiddleware_Defaults(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != `{"actor":""}` {
 			t.Errorf("Expected empty actor, got: %s", body)
@@ -78,7 +78,7 @@ func TestActorMiddleware_BasicAuthSource(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != `{"actor":"alice"}` {
 			t.Errorf("Expected actor 'alice', got: %s", body)
@@ -92,7 +92,7 @@ func TestActorMiddleware_BasicAuthSource(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		req.Header.Set("X-Actor", "proxy-user")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != `{"actor":"proxy-user"}` {
 			t.Errorf("Expected actor 'proxy-user', got: %s", body)
@@ -109,7 +109,7 @@ func TestActorMiddleware_BasicAuthSource(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		req.Header.Set("X-Actor", "proxy-user")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != `{"actor":"alice"}` {
 			t.Errorf("Expected actor 'alice' (basic auth preferred), got: %s", body)
@@ -127,7 +127,7 @@ func TestActorMiddleware_HeaderSource(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		req.Header.Set("X-Actor", "proxy-user")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != `{"actor":"proxy-user"}` {
 			t.Errorf("Expected actor 'proxy-user', got: %s", body)
@@ -143,7 +143,7 @@ func TestActorMiddleware_HeaderSource(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != `{"actor":"alice"}` {
 			t.Errorf("Expected actor 'alice' (fallback to auth), got: %s", body)
@@ -160,7 +160,7 @@ func TestActorMiddleware_HeaderSource(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		req.Header.Set("X-Actor", "proxy-user")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != `{"actor":"proxy-user"}` {
 			t.Errorf("Expected actor 'proxy-user' (header preferred), got: %s", body)
@@ -178,7 +178,7 @@ func TestActorMiddleware_CustomHeader(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		req.Header.Set("X-Remote-User", "custom-actor")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != `{"actor":"custom-actor"}` {
 			t.Errorf("Expected actor 'custom-actor', got: %s", body)
@@ -192,7 +192,7 @@ func TestActorMiddleware_CustomHeader(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		req.Header.Set("X-Actor", "wrong-actor")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		// X-Actor should be ignored since custom header is configured
 		if string(body) != `{"actor":""}` {
@@ -211,7 +211,7 @@ func TestGetActor_NoMiddleware(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/test", http.NoBody)
 	resp, body := doRequest(t, app, req)
-	requireStatus(t, resp, http.StatusOK)
+	requireStatus(t, resp, body, http.StatusOK)
 
 	if string(body) != `{"actor":""}` {
 		t.Errorf("Expected empty actor without middleware, got: %s", body)
@@ -229,7 +229,7 @@ func TestSetAuthUsername_And_GetAuthUsername(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/test", http.NoBody)
 	resp, body := doRequest(t, app, req)
-	requireStatus(t, resp, http.StatusOK)
+	requireStatus(t, resp, body, http.StatusOK)
 
 	if string(body) != `{"username":"testuser"}` {
 		t.Errorf("Expected username 'testuser', got: %s", body)

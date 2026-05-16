@@ -89,7 +89,7 @@ func TestGetSubordinates(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var subs []model.BasicSubordinateInfo
 		if err := json.Unmarshal(body, &subs); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
@@ -120,7 +120,7 @@ func TestGetSubordinates(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates?status=active", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var subs []model.BasicSubordinateInfo
 		if err := json.Unmarshal(body, &subs); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
@@ -157,7 +157,7 @@ func TestGetSubordinates(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates?entity_type=openid_relying_party", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var subs []model.BasicSubordinateInfo
 		if err := json.Unmarshal(body, &subs); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
@@ -183,9 +183,9 @@ func TestGetSubordinates(t *testing.T) {
 		app, _ := setupSubordinateBaseApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates?status=", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 	})
 
 	t.Run("EmptyEntityType", func(t *testing.T) {
@@ -193,9 +193,9 @@ func TestGetSubordinates(t *testing.T) {
 		app, _ := setupSubordinateBaseApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates?entity_type=", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 	})
 }
 
@@ -214,9 +214,9 @@ func TestPostSubordinates(t *testing.T) {
 		}`
 		req := httptest.NewRequest("POST", "/subordinates", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 
 		// Verify it was saved to DB
 		saved, err := backends.Subordinates.Get("https://new-sub.example.org")
@@ -262,9 +262,9 @@ func TestPostSubordinates(t *testing.T) {
 		}`, testRSAKeyN)
 		req := httptest.NewRequest("POST", "/subordinates", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 
 		saved, err := backends.Subordinates.Get("https://new-sub-with-keys.example.org")
 		if err != nil || saved == nil {
@@ -349,11 +349,11 @@ func TestPostSubordinates(t *testing.T) {
 		}`
 		req := httptest.NewRequest("POST", "/subordinates", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
 		// 3. CRITICAL ASSERTION
 		// BUG: The create handler does not check for AlreadyExistsError. It should return 409 Conflict but currently returns 201. This test documents the incorrect behavior.
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 	})
 }
 
@@ -382,7 +382,7 @@ func TestGetSubordinateByID(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var sub model.ExtendedSubordinateInfo
 		if err := json.Unmarshal(body, &sub); err != nil {
@@ -399,10 +399,10 @@ func TestGetSubordinateByID(t *testing.T) {
 		app, _ := setupSubordinateBaseApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates/9999", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
 		// Could be 404 or 500 depending on GORM error parsing, handlers return NotFound or ServerError
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -436,9 +436,9 @@ func TestPutSubordinateByID(t *testing.T) {
 		}`
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify it was updated in DB
 		updated, err := backends.Subordinates.Get("https://update.example.org")
@@ -479,9 +479,9 @@ func TestPutSubordinateByID(t *testing.T) {
 		body := `{"description": "New"}`
 		req := httptest.NewRequest("PUT", "/subordinates/9999", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -532,9 +532,9 @@ func TestDeleteSubordinateByID(t *testing.T) {
 		})
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		// Verify it was deleted from DB
 		deleted, err := backends.Subordinates.Get("https://delete.example.org")
@@ -557,9 +557,9 @@ func TestDeleteSubordinateByID(t *testing.T) {
 		app, _ := setupSubordinateBaseApp(t)
 
 		req := httptest.NewRequest("DELETE", "/subordinates/9999", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -584,9 +584,9 @@ func TestUpdateSubordinateStatus(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/status", saved.ID), strings.NewReader("blocked"))
 		req.Header.Set("Content-Type", "text/plain")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB status
 		updated, err := backends.Subordinates.Get("https://status.example.org")
@@ -689,9 +689,9 @@ func TestUpdateSubordinateStatus(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/9999/status", strings.NewReader("pending"))
 		req.Header.Set("Content-Type", "text/plain")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -729,7 +729,7 @@ func TestGetSubordinateHistory(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result struct {
 			Events     []eventResponse `json:"events"`
@@ -782,7 +782,7 @@ func TestGetSubordinateHistory(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?limit=1&offset=1&type=updated", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result struct {
 			Events     []eventResponse `json:"events"`
@@ -809,9 +809,9 @@ func TestGetSubordinateHistory(t *testing.T) {
 		app, _ := setupSubordinateBaseApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates/9999/history", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("InvalidQuery", func(t *testing.T) {
@@ -844,7 +844,7 @@ func TestGetSubordinateHistory(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?limit=-1", saved.ID), http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var result struct {
 			Events     []eventResponse `json:"events"`
@@ -874,7 +874,7 @@ func TestGetSubordinateHistory(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?offset=999999999", saved.ID), http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var result struct {
 			Events     []eventResponse `json:"events"`

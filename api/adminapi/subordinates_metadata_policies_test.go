@@ -94,7 +94,7 @@ func TestGetSubordinateMetadataPolicies(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/metadata-policies", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.MetadataPolicies
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -125,9 +125,9 @@ func TestGetSubordinateMetadataPolicies(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/metadata-policies", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNotFound)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -135,9 +135,9 @@ func TestGetSubordinateMetadataPolicies(t *testing.T) {
 		app, _ := setupSubordinateMetadataPoliciesApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates/9999/metadata-policies", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -169,9 +169,9 @@ func TestPutSubordinateMetadataPolicies(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/metadata-policies", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB update
 		updated, err := backends.Subordinates.Get("https://put-policy.example.org")
@@ -220,9 +220,9 @@ func TestPutSubordinateMetadataPolicies(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/metadata-policies", saved.ID), strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -231,9 +231,9 @@ func TestPutSubordinateMetadataPolicies(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/9999/metadata-policies", strings.NewReader("{}"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -269,9 +269,9 @@ func TestPostSubordinateMetadataPolicies(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/metadata-policies", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 
 		// Verify DB update copied the global policy
 		updated, err := backends.Subordinates.Get("https://post-policy.example.org")
@@ -310,9 +310,9 @@ func TestPostSubordinateMetadataPolicies(t *testing.T) {
 		app, _ := setupSubordinateMetadataPoliciesApp(t)
 
 		req := httptest.NewRequest("POST", "/subordinates/9999/metadata-policies", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -344,9 +344,9 @@ func TestDeleteSubordinateMetadataPolicies(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/metadata-policies", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		// Verify DB update (policy should be nil)
 		updated, err := backends.Subordinates.Get("https://delete-policy.example.org")
@@ -379,9 +379,9 @@ func TestDeleteSubordinateMetadataPolicies(t *testing.T) {
 		app, _ := setupSubordinateMetadataPoliciesApp(t)
 
 		req := httptest.NewRequest("DELETE", "/subordinates/9999/metadata-policies", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -415,7 +415,7 @@ func TestGetSubordinateMetadataPolicyByEntityType(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.MetadataPolicy
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -431,8 +431,8 @@ func TestGetSubordinateMetadataPolicyByEntityType(t *testing.T) {
 		t.Parallel()
 		app, _ := setupSubordinateMetadataPoliciesApp(t)
 		req := httptest.NewRequest("GET", "/subordinates/9999/metadata-policies/openid_relying_party", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("NotFound/EntityType", func(t *testing.T) {
@@ -451,9 +451,9 @@ func TestGetSubordinateMetadataPolicyByEntityType(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_provider", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -491,9 +491,9 @@ func TestPutSubordinateMetadataPolicyByEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB update
 		updated, err := backends.Subordinates.Get("https://put-type.example.org")
@@ -536,9 +536,9 @@ func TestPutSubordinateMetadataPolicyByEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party", saved.ID), strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -573,9 +573,9 @@ func TestPostSubordinateMetadataPolicyByEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB update merged the policies
 		updated, err := backends.Subordinates.Get("https://post-type.example.org")
@@ -610,9 +610,9 @@ func TestPostSubordinateMetadataPolicyByEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party", saved.ID), strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -643,9 +643,9 @@ func TestDeleteSubordinateMetadataPolicyByEntityType(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		// Verify DB update
 		updated, err := backends.Subordinates.Get("https://delete-type.example.org")
@@ -669,8 +669,8 @@ func TestDeleteSubordinateMetadataPolicyByEntityType(t *testing.T) {
 		t.Parallel()
 		app, _ := setupSubordinateMetadataPoliciesApp(t)
 		req := httptest.NewRequest("DELETE", "/subordinates/9999/metadata-policies/openid_relying_party", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("NotFound/EntityType", func(t *testing.T) {
@@ -689,9 +689,9 @@ func TestDeleteSubordinateMetadataPolicyByEntityType(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_provider", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNoContent)
+		assertStatus(t, resp, bodyBytes, http.StatusNoContent)
 	})
 }
 
@@ -724,7 +724,7 @@ func TestGetSubordinateMetadataPolicyByClaim(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.MetadataPolicyEntry
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -757,9 +757,9 @@ func TestGetSubordinateMetadataPolicyByClaim(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/missing", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -795,9 +795,9 @@ func TestPutSubordinateMetadataPolicyByClaim(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB update
 		updated, err := backends.Subordinates.Get("https://put-claim.example.org")
@@ -837,9 +837,9 @@ func TestPutSubordinateMetadataPolicyByClaim(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts", saved.ID), strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -874,9 +874,9 @@ func TestPostSubordinateMetadataPolicyByClaim(t *testing.T) {
 
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB update
 		updated, err := backends.Subordinates.Get("https://post-claim.example.org")
@@ -899,8 +899,8 @@ func TestPostSubordinateMetadataPolicyByClaim(t *testing.T) {
 		app, _ := setupSubordinateMetadataPoliciesApp(t)
 		req := httptest.NewRequest("POST", "/subordinates/1/metadata-policies/openid_relying_party/contacts", strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusBadRequest)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -929,9 +929,9 @@ func TestDeleteSubordinateMetadataPolicyByClaim(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/delete_me", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		// Verify DB update
 		updated, err := backends.Subordinates.Get("https://delete-claim.example.org")
@@ -965,9 +965,9 @@ func TestDeleteSubordinateMetadataPolicyByClaim(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/not_here", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -999,7 +999,7 @@ func TestGetSubordinateMetadataPolicyByOperator(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts/add", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result []any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1030,9 +1030,9 @@ func TestGetSubordinateMetadataPolicyByOperator(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts/add", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -1066,9 +1066,9 @@ func TestPutSubordinateMetadataPolicyByOperator(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts/add", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB update
 		updated, err := backends.Subordinates.Get("https://put-operator.example.org")
@@ -1101,9 +1101,9 @@ func TestPutSubordinateMetadataPolicyByOperator(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts/add", saved.ID), strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -1134,9 +1134,9 @@ func TestDeleteSubordinateMetadataPolicyByOperator(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts/delete_me", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		// Verify DB update
 		updated, err := backends.Subordinates.Get("https://delete-operator.example.org")
@@ -1172,9 +1172,9 @@ func TestDeleteSubordinateMetadataPolicyByOperator(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/metadata-policies/openid_relying_party/contacts/not_here", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -1218,7 +1218,7 @@ func TestGetGeneralMetadataPolicies(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/metadata-policies", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.MetadataPolicies
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1247,7 +1247,7 @@ func TestGetGeneralMetadataPolicies(t *testing.T) {
 		// General policies behave differently than subordinate-specific policies.
 		// If no global policy is found in KV, the store returns an empty MetadataPolicies struct,
 		// and the handler returns 200 OK with `{}`, not a 404.
-		assertStatus(t, resp, http.StatusOK)
+		assertStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != "{}" {
 			t.Errorf("Expected empty JSON object '{}', got %s", string(body))
@@ -1271,9 +1271,9 @@ func TestPutGeneralMetadataPolicies(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/metadata-policies", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB update
 		var updated oidfed.MetadataPolicies
@@ -1301,9 +1301,9 @@ func TestPutGeneralMetadataPolicies(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/metadata-policies", strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -1329,7 +1329,7 @@ func TestGeneralMetadataPolicyByEntityType(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/metadata-policies/openid_relying_party", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.MetadataPolicy
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1359,9 +1359,9 @@ func TestGeneralMetadataPolicyByEntityType(t *testing.T) {
 		body := `{"new_claim": {"value": "new"}}`
 		req := httptest.NewRequest("PUT", "/subordinates/metadata-policies/openid_relying_party", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.MetadataPolicies
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicy, &updated); err != nil {
@@ -1396,9 +1396,9 @@ func TestGeneralMetadataPolicyByEntityType(t *testing.T) {
 		body := `{"new_claim": {"add": ["merged"]}}`
 		req := httptest.NewRequest("POST", "/subordinates/metadata-policies/openid_relying_party", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.MetadataPolicies
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicy, &updated); err != nil {
@@ -1430,9 +1430,9 @@ func TestGeneralMetadataPolicyByEntityType(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/subordinates/metadata-policies/openid_relying_party", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		var updated oidfed.MetadataPolicies
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicy, &updated); err != nil {
@@ -1471,7 +1471,7 @@ func TestGeneralMetadataPolicyByClaim(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/metadata-policies/openid_relying_party/contacts", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.MetadataPolicyEntry
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1505,9 +1505,9 @@ func TestGeneralMetadataPolicyByClaim(t *testing.T) {
 		body := `{"value": "new_direct_value"}`
 		req := httptest.NewRequest("PUT", "/subordinates/metadata-policies/openid_relying_party/contacts", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.MetadataPolicies
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicy, &updated); err != nil {
@@ -1541,9 +1541,9 @@ func TestGeneralMetadataPolicyByClaim(t *testing.T) {
 		body := `{"value": "merged_value"}`
 		req := httptest.NewRequest("POST", "/subordinates/metadata-policies/openid_relying_party/contacts", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.MetadataPolicies
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicy, &updated); err != nil {
@@ -1573,9 +1573,9 @@ func TestGeneralMetadataPolicyByClaim(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/subordinates/metadata-policies/openid_relying_party/delete_me", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		var updated oidfed.MetadataPolicies
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicy, &updated); err != nil {
@@ -1613,7 +1613,7 @@ func TestGeneralMetadataPolicyByOperator(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/metadata-policies/openid_relying_party/contacts/add", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result []any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1643,9 +1643,9 @@ func TestGeneralMetadataPolicyByOperator(t *testing.T) {
 		body := `["new@example.org"]`
 		req := httptest.NewRequest("PUT", "/subordinates/metadata-policies/openid_relying_party/contacts/add", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.MetadataPolicies
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicy, &updated); err != nil {
@@ -1677,9 +1677,9 @@ func TestGeneralMetadataPolicyByOperator(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/subordinates/metadata-policies/openid_relying_party/contacts/delete_me", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		var updated oidfed.MetadataPolicies
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyMetadataPolicy, &updated); err != nil {
@@ -1718,7 +1718,7 @@ func TestMetadataPolicyCrit(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/subordinates/metadata-policy-crit", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var operators []string
 		if err := json.Unmarshal(body, &operators); err != nil {
@@ -1738,7 +1738,7 @@ func TestMetadataPolicyCrit(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/subordinates/metadata-policy-crit", strings.NewReader(putBody))
 		req.Header.Set("Content-Type", "application/json")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var putResult []string
 		if err := json.Unmarshal(body, &putResult); err != nil {
@@ -1751,7 +1751,7 @@ func TestMetadataPolicyCrit(t *testing.T) {
 		// Verify GET returns the same list
 		req = httptest.NewRequest("GET", "/subordinates/metadata-policy-crit", http.NoBody)
 		resp, body = doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var getResult []string
 		if err := json.Unmarshal(body, &getResult); err != nil {
@@ -1779,7 +1779,7 @@ func TestMetadataPolicyCrit(t *testing.T) {
 		req := httptest.NewRequest("POST", "/subordinates/metadata-policy-crit", strings.NewReader(`"value"`))
 		req.Header.Set("Content-Type", "application/json")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 
 		var result string
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1826,13 +1826,13 @@ func TestMetadataPolicyCrit(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/subordinates/metadata-policy-crit/value", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNoContent)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		// Verify only "add" remains
 		req = httptest.NewRequest("GET", "/subordinates/metadata-policy-crit", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var remaining []string
 		if err := json.Unmarshal(body, &remaining); err != nil {

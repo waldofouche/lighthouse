@@ -112,11 +112,8 @@ func injectTestKey(t *testing.T, app *fiber.App, kid string) {
 	body := newTestKeyBody(kid)
 	req := httptest.NewRequest("POST", "/entity-configuration/keys", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := app.Test(req, -1)
-	if err != nil {
-		t.Fatalf("Failed to inject test key %q: %v", kid, err)
-	}
-	requireStatus(t, resp, http.StatusCreated)
+	resp, bodyBytes := doRequest(t, app, req)
+	requireStatus(t, resp, bodyBytes, http.StatusCreated)
 }
 
 // doRequest is a tiny helper to execute an HTTP request against a Fiber app and
@@ -136,7 +133,7 @@ func TestPostPublicKey(t *testing.T) {
 
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 201)
+		requireStatus(t, resp, respBody, 201)
 
 		// Verify the response body contains the key
 		var created map[string]any
@@ -168,9 +165,9 @@ func TestPostPublicKey(t *testing.T) {
 		req := httptest.NewRequest("POST", "/entity-configuration/keys", strings.NewReader(`{}`))
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("KidMismatch", func(t *testing.T) {
@@ -190,9 +187,9 @@ func TestPostPublicKey(t *testing.T) {
 		req := httptest.NewRequest("POST", "/entity-configuration/keys", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -202,9 +199,9 @@ func TestPostPublicKey(t *testing.T) {
 		req := httptest.NewRequest("POST", "/entity-configuration/keys", strings.NewReader(`not valid json`))
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -219,7 +216,7 @@ func TestGetPublicKeys(t *testing.T) {
 		req := httptest.NewRequest("GET", "/entity-configuration/keys/", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		var keys []map[string]any
 		if err := json.Unmarshal(respBody, &keys); err != nil {
@@ -238,7 +235,7 @@ func TestGetPublicKeys(t *testing.T) {
 		req := httptest.NewRequest("GET", "/entity-configuration/keys/", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		var keys []map[string]any
 		if err := json.Unmarshal(respBody, &keys); err != nil {
@@ -263,9 +260,9 @@ func TestDeletePublicKey(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/keys/key-to-delete", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNoContent)
+		assertStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		// Verify key is gone from database
 		deletedKey, err := km.APIManagedPKs.Get("key-to-delete")
@@ -283,9 +280,9 @@ func TestDeletePublicKey(t *testing.T) {
 		injectTestKey(t, app, "key-to-revoke")
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/keys/key-to-revoke?revoke=true&reason=compromised", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNoContent)
+		assertStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		// Key should still exist but be revoked
 		revokedKey, err := km.APIManagedPKs.Get("key-to-revoke")
@@ -306,9 +303,9 @@ func TestDeletePublicKey(t *testing.T) {
 
 		// Deleting a non-existent key should still return 204 (idempotent)
 		req := httptest.NewRequest("DELETE", "/entity-configuration/keys/does-not-exist", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, 204)
+		assertStatus(t, resp, bodyBytes, 204)
 	})
 }
 
@@ -324,7 +321,7 @@ func TestUpdatePublicKeyExp(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		// Verify response body
 		var updated map[string]any
@@ -358,9 +355,9 @@ func TestUpdatePublicKeyExp(t *testing.T) {
 		body := `{"exp": 2000000000}`
 		req := httptest.NewRequest("PUT", "/entity-configuration/keys/nonexistent-key", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -370,9 +367,9 @@ func TestUpdatePublicKeyExp(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/keys/key-bad-update", strings.NewReader(`not json`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -396,7 +393,7 @@ func TestRotatePublicKey(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 201)
+		requireStatus(t, resp, respBody, 201)
 
 		// Verify the response body contains the new key
 		var created map[string]any
@@ -436,9 +433,9 @@ func TestRotatePublicKey(t *testing.T) {
 		newKeyBody := newTestKeyBody("new-key")
 		req := httptest.NewRequest("POST", "/entity-configuration/keys/nonexistent-old-key", strings.NewReader(newKeyBody))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("MissingKey", func(t *testing.T) {
@@ -448,9 +445,9 @@ func TestRotatePublicKey(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/keys/existing-key", strings.NewReader(`{}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -460,9 +457,9 @@ func TestRotatePublicKey(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/keys/existing-key-2", strings.NewReader(`not json`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("WithCustomOldKeyExp", func(t *testing.T) {
@@ -482,9 +479,9 @@ func TestRotatePublicKey(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/keys/rotate-custom-old", strings.NewReader(newKeyBody))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, 201)
+		requireStatus(t, resp, bodyBytes, 201)
 
 		// Verify old key has the custom expiration
 		oldKey, err := km.APIManagedPKs.Get("rotate-custom-old")
@@ -536,7 +533,7 @@ func TestGetEntityConfigurationJWKS(t *testing.T) {
 		req := httptest.NewRequest("GET", "/entity-configuration/jwks", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		var jwks struct {
 			Keys []map[string]any `json:"keys"`
@@ -581,7 +578,7 @@ func TestGetEntityConfigurationJWKS(t *testing.T) {
 		req := httptest.NewRequest("GET", "/entity-configuration/jwks", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		var jwks struct {
 			Keys []map[string]any `json:"keys"`
@@ -633,7 +630,7 @@ func TestGetEntityConfigurationJWKS(t *testing.T) {
 		req := httptest.NewRequest("GET", "/entity-configuration/jwks", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		var jwks struct {
 			Keys []map[string]any `json:"keys"`
@@ -674,7 +671,7 @@ func TestGetKMSInfo(t *testing.T) {
 		req := httptest.NewRequest("GET", "/kms", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		// Verify the response body structure and values
 		var info map[string]any
@@ -719,7 +716,7 @@ func TestGetKMSInfo(t *testing.T) {
 		req := httptest.NewRequest("GET", "/kms", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		var info map[string]any
 		if err := json.Unmarshal(respBody, &info); err != nil {
@@ -772,9 +769,9 @@ func TestPutKMSAlg(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/kms/alg", strings.NewReader(`ES512`))
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("InvalidAlgorithm", func(t *testing.T) {
@@ -801,9 +798,9 @@ func TestPutKMSAlg(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/kms/alg", strings.NewReader(`INVALID-ALG`))
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -830,9 +827,9 @@ func TestPutKMSAlg(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/kms/alg", strings.NewReader(`not json`))
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("Success", func(t *testing.T) {
@@ -861,7 +858,7 @@ func TestPutKMSAlg(t *testing.T) {
 
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		// Verify the response is valid KMS info
 		var info map[string]any
@@ -899,9 +896,9 @@ func TestPutKMSRSAKeyLen(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/kms/rsa-key-len", strings.NewReader(`4096`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, bodyBytes, 200)
 
 		savedLen, err := storage.GetRSAKeyLen(store.KeyValue())
 		if err != nil {
@@ -935,9 +932,9 @@ func TestPutKMSRSAKeyLen(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/kms/rsa-key-len", strings.NewReader(`4096`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -963,9 +960,9 @@ func TestPutKMSRSAKeyLen(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/kms/rsa-key-len", strings.NewReader(`"not a number"`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -1001,7 +998,7 @@ func TestGetKMSRotation(t *testing.T) {
 		req := httptest.NewRequest("GET", "/kms/rotation", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 
 		var config map[string]any
 		if err := json.Unmarshal(respBody, &config); err != nil {
@@ -1033,9 +1030,9 @@ func TestGetKMSRotation(t *testing.T) {
 		registerKeys(app, km, store.KeyValue(), backends)
 
 		req := httptest.NewRequest("GET", "/kms/rotation", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -1064,9 +1061,9 @@ func TestPutKMSRotation(t *testing.T) {
 		body := `{"enabled": true, "interval": 3600, "overlap": 600}`
 		req := httptest.NewRequest("PUT", "/kms/rotation", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, bodyBytes, 200)
 
 		savedConfig, err := storage.GetKeyRotation(store.KeyValue())
 		if err != nil {
@@ -1106,9 +1103,9 @@ func TestPutKMSRotation(t *testing.T) {
 		body := `{"enabled": true}`
 		req := httptest.NewRequest("PUT", "/kms/rotation", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -1133,9 +1130,9 @@ func TestPutKMSRotation(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/kms/rotation", strings.NewReader(`not json`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -1169,9 +1166,9 @@ func TestPatchKMSRotation(t *testing.T) {
 		// PATCH only the 'enabled' field
 		req := httptest.NewRequest("PATCH", "/kms/rotation", strings.NewReader(`{"enabled": true}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, bodyBytes, 200)
 
 		savedConfig, err := storage.GetKeyRotation(store.KeyValue())
 		if err != nil {
@@ -1209,9 +1206,9 @@ func TestPatchKMSRotation(t *testing.T) {
 		// PATCH only the interval
 		req := httptest.NewRequest("PATCH", "/kms/rotation", strings.NewReader(`{"interval": 7200}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, bodyBytes, 200)
 
 		savedConfig, err := storage.GetKeyRotation(store.KeyValue())
 		if err != nil {
@@ -1248,9 +1245,9 @@ func TestPatchKMSRotation(t *testing.T) {
 
 		req := httptest.NewRequest("PATCH", "/kms/rotation", strings.NewReader(`{"enabled": true}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }
 
@@ -1277,9 +1274,9 @@ func TestPostKMSRotateAll(t *testing.T) {
 		registerKeys(app, km, store.KeyValue(), backends)
 
 		req := httptest.NewRequest("POST", "/kms/rotate", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusAccepted)
+		assertStatus(t, resp, bodyBytes, http.StatusAccepted)
 	})
 
 	t.Run("NotSupportedWhenKeysNil", func(t *testing.T) {
@@ -1303,8 +1300,8 @@ func TestPostKMSRotateAll(t *testing.T) {
 		registerKeys(app, km, store.KeyValue(), backends)
 
 		req := httptest.NewRequest("POST", "/kms/rotate", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 }

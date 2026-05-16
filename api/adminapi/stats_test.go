@@ -129,7 +129,7 @@ func TestStatsAPISummary(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/summary?from=2026-01-01&to=2026-01-31", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		wantFrom := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		wantTo := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
@@ -155,8 +155,8 @@ func TestStatsAPISummary(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/summary", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		diff := gotTo.Sub(gotFrom)
 		if diff < 23*time.Hour+59*time.Minute || diff > 24*time.Hour+time.Minute {
@@ -174,8 +174,8 @@ func TestStatsAPISummary(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/summary", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusInternalServerError)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusInternalServerError)
 	})
 }
 
@@ -203,7 +203,7 @@ func TestStatsAPITopEndpoints(t *testing.T) {
 			http.NoBody,
 		)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if gotLimit != 100 {
 			t.Fatalf("expected capped limit 100, got %d", gotLimit)
@@ -228,8 +228,8 @@ func TestStatsAPITopEndpoints(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/top/endpoints?limit=-3", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 		if gotLimit != 10 {
 			t.Fatalf("expected default limit 10, got %d", gotLimit)
 		}
@@ -252,7 +252,7 @@ func TestStatsAPITopBreakdowns(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/top/user-agents?limit=5", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if gotLimit != 5 {
 			t.Fatalf("expected limit 5, got %d", gotLimit)
 		}
@@ -272,7 +272,7 @@ func TestStatsAPITopBreakdowns(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/top/clients", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !strings.Contains(string(body), `"127.0.0.1"`) {
 			t.Fatalf("expected client entry in body, got %s", string(body))
 		}
@@ -289,7 +289,7 @@ func TestStatsAPITopBreakdowns(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/top/countries", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !strings.Contains(string(body), `"SE"`) {
 			t.Fatalf("expected country entry in body, got %s", string(body))
 		}
@@ -310,7 +310,7 @@ func TestStatsAPITopBreakdowns(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/top/params?endpoint=fetch&limit=7", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if gotEndpoint != "fetch" || gotLimit != 7 {
 			t.Fatalf("unexpected query params call: endpoint=%q limit=%d", gotEndpoint, gotLimit)
 		}
@@ -338,7 +338,7 @@ func TestStatsAPITimeSeriesLatencyAndDaily(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/timeseries?endpoint=fetch&interval=day", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if gotEndpoint != "fetch" || gotInterval != istats.IntervalDay {
 			t.Fatalf("unexpected timeseries call: endpoint=%q interval=%q", gotEndpoint, gotInterval)
 		}
@@ -359,8 +359,8 @@ func TestStatsAPITimeSeriesLatencyAndDaily(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/timeseries?interval=bogus", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 		if gotInterval != istats.IntervalHour {
 			t.Fatalf("expected default interval %q, got %q", istats.IntervalHour, gotInterval)
 		}
@@ -379,7 +379,7 @@ func TestStatsAPITimeSeriesLatencyAndDaily(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/latency?endpoint=resolve", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if gotEndpoint != "resolve" {
 			t.Fatalf("expected latency endpoint %q, got %q", "resolve", gotEndpoint)
 		}
@@ -403,7 +403,7 @@ func TestStatsAPITimeSeriesLatencyAndDaily(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/daily?from=2026-04-01&to=2026-04-03", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !gotFrom.Equal(time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)) || !gotTo.Equal(time.Date(2026, 4, 3, 23, 59, 59, 0, time.UTC)) {
 			t.Fatalf("unexpected daily time range: got %s to %s", gotFrom, gotTo)
 		}
@@ -435,7 +435,7 @@ func TestStatsAPIExport(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/export?format=json", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if jsonCalls != 1 || csvCalls != 0 {
 			t.Fatalf("expected json export once and csv never, got json=%d csv=%d", jsonCalls, csvCalls)
 		}
@@ -469,7 +469,7 @@ func TestStatsAPIExport(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/stats/export?format=xml", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if csvCalls != 1 || jsonCalls != 0 {
 			t.Fatalf("expected csv export once and json never, got csv=%d json=%d", csvCalls, jsonCalls)
 		}

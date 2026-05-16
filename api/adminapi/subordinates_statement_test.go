@@ -79,7 +79,7 @@ func TestSubordinateStatement(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -99,9 +99,9 @@ func TestSubordinateStatement(t *testing.T) {
 		app, _ := setupSubordinateStatementApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates/9999/statement", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("CriticalExtensions", func(t *testing.T) {
@@ -124,7 +124,7 @@ func TestSubordinateStatement(t *testing.T) {
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -167,7 +167,7 @@ func TestSubordinateStatement(t *testing.T) {
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -213,7 +213,7 @@ func TestSubordinateStatement(t *testing.T) {
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {

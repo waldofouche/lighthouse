@@ -57,8 +57,8 @@ func TestEntityConfigurationCacheInvalidationMiddleware(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodPost, "/entity-config", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNoContent)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 		requireEntityConfigurationCache(t, false, nil)
 	})
 
@@ -70,8 +70,8 @@ func TestEntityConfigurationCacheInvalidationMiddleware(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodPost, "/entity-config", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusBadRequest)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusBadRequest)
 		requireEntityConfigurationCache(t, true, cacheValue)
 	})
 
@@ -85,9 +85,9 @@ func TestEntityConfigurationCacheInvalidationMiddleware(t *testing.T) {
 	// 	})
 
 	// 	req := httptest.NewRequest(http.MethodPost, "/entity-config", http.NoBody)
-	// 	resp, _ := doRequest(t, app, req)
+	// 	resp, bodyBytes := doRequest(t, app, req)
 
-	// 	requireStatus(t, resp, fiber.StatusMovedPermanently)
+	// 	requireStatus(t, resp, bodyBytes, fiber.StatusMovedPermanently)
 	// 	requireEntityConfigurationCache(t, true, cacheValue)
 	// })
 }
@@ -111,8 +111,8 @@ func TestSubordinateStatementsCacheInvalidationMiddleware(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodDelete, "/subordinates/123", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNoContent)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 		requireCacheEntry(t, key123, false, nil)
 		requireCacheEntry(t, key456, true, value456)
 	})
@@ -126,8 +126,8 @@ func TestSubordinateStatementsCacheInvalidationMiddleware(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodPost, "/subordinates", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusCreated)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 		requireCacheEntry(t, key123, false, nil)
 		requireCacheEntry(t, key456, false, nil)
 	})
@@ -141,8 +141,8 @@ func TestSubordinateStatementsCacheInvalidationMiddleware(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodDelete, "/subordinates/123", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusInternalServerError)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusInternalServerError)
 		requireCacheEntry(t, key123, true, value123)
 		requireCacheEntry(t, key456, true, value456)
 	})

@@ -168,7 +168,7 @@ func TestTrustMarkTypesHandlers_List(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/types", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !strings.Contains(string(body), "type1") {
 			t.Errorf("Expected response to contain 'type1'")
 		}
@@ -202,7 +202,7 @@ func TestTrustMarkTypesHandlers_Create(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, respBody, http.StatusCreated)
 		if !strings.Contains(string(respBody), "type1") {
 			t.Errorf("Expected response to contain 'type1'")
 		}
@@ -277,7 +277,7 @@ func TestTrustMarkTypesHandlers_Get(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/types/1", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !strings.Contains(string(body), "type1") {
 			t.Errorf("Expected response to contain 'type1'")
 		}
@@ -311,7 +311,7 @@ func TestTrustMarkTypesHandlers_Update(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 		if !strings.Contains(string(respBody), "updated-1") { // Default mock return
 			t.Errorf("Expected response to contain 'updated-1', got %s", string(respBody))
 		}
@@ -359,7 +359,7 @@ func TestTrustMarkTypesHandlers_Update(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 		if !strings.Contains(string(respBody), "tx-updated") {
 			t.Errorf("Expected response to contain 'tx-updated'")
 		}
@@ -403,8 +403,8 @@ func TestTrustMarkTypesHandlers_Update(t *testing.T) {
 		body := `{"trust_mark_type": "t1", "trust_mark_owner": {"entity_id": "new-owner"}}`
 		req := httptest.NewRequest("PUT", "/trust-marks/types/1", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		if !createCalled {
 			t.Errorf("Expected CreateOwner to be called when UpdateOwner returns NotFound and OwnerID is nil")
@@ -482,9 +482,9 @@ func TestTrustMarkTypesHandlers_Delete(t *testing.T) {
 		app := setupTrustMarkTypesApp(t, mockStore)
 
 		req := httptest.NewRequest("DELETE", "/trust-marks/types/1", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -532,7 +532,7 @@ func TestTrustMarkIssuersHandlers_List(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/types/1/issuers", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !strings.Contains(string(body), "iss1") {
 			t.Errorf("Expected response to contain 'iss1'")
 		}
@@ -584,7 +584,7 @@ func TestTrustMarkIssuersHandlers_Set(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !strings.Contains(string(body), "iss2") {
 			t.Errorf("Expected response to contain 'iss2'")
 		}
@@ -649,7 +649,7 @@ func TestTrustMarkIssuersHandlers_Add(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 		if !strings.Contains(string(body), "iss3") {
 			t.Errorf("Expected response to contain 'iss3'")
 		}
@@ -713,7 +713,7 @@ func TestTrustMarkIssuersHandlers_Delete(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/trust-marks/types/1/issuers/42", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var issuers []model.TrustMarkIssuer
 		if err := json.Unmarshal(body, &issuers); err != nil {
@@ -742,7 +742,7 @@ func TestTrustMarkIssuersHandlers_Delete(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/trust-marks/types/1/issuers/notanumber", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var issuers []model.TrustMarkIssuer
 		if err := json.Unmarshal(body, &issuers); err != nil {
@@ -820,7 +820,7 @@ func TestTrustMarkOwnerHandlers_Get(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/types/1/owner", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !strings.Contains(string(body), "owner1") {
 			t.Errorf("Expected response to contain 'owner1'")
 		}
@@ -872,7 +872,7 @@ func TestTrustMarkOwnerHandlers_Update(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if !strings.Contains(string(body), "owner2") {
 			t.Errorf("Expected response to contain 'owner2'")
 		}
@@ -964,7 +964,7 @@ func TestTrustMarkOwnerHandlers_Create(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 		if !strings.Contains(string(body), "owner3") {
 			t.Errorf("Expected response to contain 'owner3'")
 		}
@@ -1053,9 +1053,9 @@ func TestTrustMarkOwnerHandlers_Delete(t *testing.T) {
 		app := setupTrustMarkTypesApp(t, mockStore)
 
 		req := httptest.NewRequest("DELETE", "/trust-marks/types/1/owner", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {

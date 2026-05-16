@@ -155,7 +155,7 @@ func TestTrustMarkSpecHandlers_List(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/issuance-spec", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var specs []model.TrustMarkSpec
 		if err := json.Unmarshal(body, &specs); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -197,7 +197,7 @@ func TestTrustMarkSpecHandlers_Create(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, respBody, http.StatusCreated)
 		var spec model.TrustMarkSpec
 		if err := json.Unmarshal(respBody, &spec); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -276,7 +276,7 @@ func TestTrustMarkSpecHandlers_Get(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/issuance-spec/1", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var spec model.TrustMarkSpec
 		if err := json.Unmarshal(body, &spec); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -333,7 +333,7 @@ func TestTrustMarkSpecHandlers_Update(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 		var spec model.TrustMarkSpec
 		if err := json.Unmarshal(respBody, &spec); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -414,7 +414,7 @@ func TestTrustMarkSpecHandlers_Patch(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 		var spec model.TrustMarkSpec
 		if err := json.Unmarshal(respBody, &spec); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -480,9 +480,9 @@ func TestTrustMarkSpecHandlers_Delete(t *testing.T) {
 		app := setupTrustMarkIssuanceApp(t, mockStore)
 
 		req := httptest.NewRequest("DELETE", "/trust-marks/issuance-spec/1", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -530,7 +530,7 @@ func TestTrustMarkSubjectHandlers_List(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/issuance-spec/1/subjects", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var subjects []model.TrustMarkSubject
 		if err := json.Unmarshal(body, &subjects); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -582,7 +582,7 @@ func TestTrustMarkSubjectHandlers_Create(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, respBody, http.StatusCreated)
 		var subject model.TrustMarkSubject
 		if err := json.Unmarshal(respBody, &subject); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -675,7 +675,7 @@ func TestTrustMarkSubjectHandlers_Get(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/issuance-spec/1/subjects/2", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var subject model.TrustMarkSubject
 		if err := json.Unmarshal(body, &subject); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -732,7 +732,7 @@ func TestTrustMarkSubjectHandlers_Update(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 		var subject model.TrustMarkSubject
 		if err := json.Unmarshal(respBody, &subject); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -809,9 +809,9 @@ func TestTrustMarkSubjectHandlers_Delete(t *testing.T) {
 		app := setupTrustMarkIssuanceApp(t, mockStore)
 
 		req := httptest.NewRequest("DELETE", "/trust-marks/issuance-spec/1/subjects/2", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -860,7 +860,7 @@ func TestTrustMarkSubjectHandlers_UpdateStatus(t *testing.T) {
 		req.Header.Set("Content-Type", "text/plain")
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var subject model.TrustMarkSubject
 		if err := json.Unmarshal(body, &subject); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -939,7 +939,7 @@ func TestTrustMarkSubjectHandlers_AdditionalClaims(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/issuance-spec/1/subjects/2/additional-claims", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		var claims map[string]any
 		if err := json.Unmarshal(body, &claims); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -961,7 +961,7 @@ func TestTrustMarkSubjectHandlers_AdditionalClaims(t *testing.T) {
 		req := httptest.NewRequest("GET", "/trust-marks/issuance-spec/1/subjects/2/additional-claims", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 		if string(body) != "{}" {
 			t.Errorf("Expected empty object, got %s", string(body))
 		}
@@ -999,7 +999,7 @@ func TestTrustMarkSubjectHandlers_AdditionalClaims(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 		var claims map[string]any
 		if err := json.Unmarshal(respBody, &claims); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -1038,7 +1038,7 @@ func TestTrustMarkSubjectHandlers_AdditionalClaims(t *testing.T) {
 		req := httptest.NewRequest("POST", "/trust-marks/issuance-spec/1/subjects/2/additional-claims", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 		var claims map[string]any
 		if err := json.Unmarshal(respBody, &claims); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -1113,7 +1113,7 @@ func TestTrustMarkSpecHandlers_RealStoragePersistence(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, respBody, http.StatusCreated)
 
 		var created model.TrustMarkSpec
 		if err := json.Unmarshal(respBody, &created); err != nil {
@@ -1181,7 +1181,7 @@ func TestTrustMarkSpecHandlers_RealStoragePersistence(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var updated model.TrustMarkSpec
 		if err := json.Unmarshal(respBody, &updated); err != nil {
@@ -1239,7 +1239,7 @@ func TestTrustMarkSpecHandlers_RealStoragePersistence(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var patched model.TrustMarkSpec
 		if err := json.Unmarshal(respBody, &patched); err != nil {
@@ -1289,7 +1289,7 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, respBody, http.StatusCreated)
 
 		var created model.TrustMarkSubject
 		if err := json.Unmarshal(respBody, &created); err != nil {
@@ -1341,7 +1341,7 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var updated model.TrustMarkSubject
 		if err := json.Unmarshal(respBody, &updated); err != nil {
@@ -1384,7 +1384,7 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var updatedClaims map[string]any
 		if err := json.Unmarshal(respBody, &updatedClaims); err != nil {
@@ -1432,7 +1432,7 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/trust-marks/issuance-spec/type-subject-copy-claims/subjects/subject-copy-claims/additional-claims", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, respBody, http.StatusOK)
 
 		var mergedClaims map[string]any
 		if err := json.Unmarshal(respBody, &mergedClaims); err != nil {
@@ -1484,8 +1484,8 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 
 		// 2. Hit the endpoint that copies/merges these claims into a subject
 		req := httptest.NewRequest(http.MethodPost, "/trust-marks/issuance-spec/"+specType+"/subjects/"+subjectID+"/additional-claims", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// 3. Mutate the resulting merged claims using a PUT request to the subject
 		body := `{
@@ -1495,8 +1495,8 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 	}`
 		req = httptest.NewRequest(http.MethodPut, "/trust-marks/issuance-spec/"+specType+"/subjects/"+subjectID+"/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ = doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		resp, bodyBytes = doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// 4. CRITICAL ASSERTION: Re-read the original Spec and assert that AdditionalClaims["profile"]["tier"] is STILL "gold"
 		spec, err := specStore.Get(specType)

@@ -64,7 +64,7 @@ func TestSubordinateConstraintsAll(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.ConstraintSpecification
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -92,7 +92,7 @@ func TestSubordinateConstraintsAll(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != "{}" {
 			t.Errorf("Expected empty json object for nil constraints, got %s", string(body))
@@ -119,9 +119,9 @@ func TestSubordinateConstraintsAll(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		// Verify DB
 		updated, err := backends.Subordinates.Get("https://constraints-put.example.org")
@@ -168,9 +168,9 @@ func TestSubordinateConstraintsAll(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		updated, err := backends.Subordinates.Get("https://constraints-delete.example.org")
 		if err != nil {
@@ -201,8 +201,8 @@ func TestSubordinateConstraintsAll(t *testing.T) {
 		t.Parallel()
 		app, _ := setupSubordinateConstraintsApp(t)
 		req := httptest.NewRequest("GET", "/subordinates/9999/constraints", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -231,7 +231,7 @@ func TestSubordinateConstraintsMaxPathLength(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/constraints/max-path-length", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result int
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -258,9 +258,9 @@ func TestSubordinateConstraintsMaxPathLength(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/constraints/max-path-length", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNotFound)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("PUT Success", func(t *testing.T) {
@@ -282,9 +282,9 @@ func TestSubordinateConstraintsMaxPathLength(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/constraints/max-path-length", saved.ID), strings.NewReader(`3`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		updated, err := backends.Subordinates.Get("https://maxpath-put.example.org")
 		if err != nil {
@@ -318,9 +318,9 @@ func TestSubordinateConstraintsMaxPathLength(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/constraints/max-path-length", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		updated, err := backends.Subordinates.Get("https://maxpath-delete.example.org")
 		if err != nil {
@@ -364,7 +364,7 @@ func TestSubordinateConstraintsNamingConstraints(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/constraints/naming-constraints", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.NamingConstraints
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -391,9 +391,9 @@ func TestSubordinateConstraintsNamingConstraints(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/constraints/naming-constraints", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNotFound)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("PUT Success", func(t *testing.T) {
@@ -416,9 +416,9 @@ func TestSubordinateConstraintsNamingConstraints(t *testing.T) {
 		body := `{"permitted": ["new.example.com"], "excluded": ["bad.example.com"]}`
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/constraints/naming-constraints", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		updated, err := backends.Subordinates.Get("https://naming-put.example.org")
 		if err != nil {
@@ -456,9 +456,9 @@ func TestSubordinateConstraintsNamingConstraints(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/constraints/naming-constraints", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		updated, err := backends.Subordinates.Get("https://naming-delete.example.org")
 		if err != nil {
@@ -500,7 +500,7 @@ func TestSubordinateConstraintsAllowedEntityTypes(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result []string
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -527,9 +527,9 @@ func TestSubordinateConstraintsAllowedEntityTypes(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNotFound)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("PUT Success", func(t *testing.T) {
@@ -554,9 +554,9 @@ func TestSubordinateConstraintsAllowedEntityTypes(t *testing.T) {
 		body := `["new_type"]`
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		updated, err := backends.Subordinates.Get("https://allowed-put.example.org")
 		if err != nil {
@@ -593,9 +593,9 @@ func TestSubordinateConstraintsAllowedEntityTypes(t *testing.T) {
 		body := `merged_type`
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "text/plain")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 
 		updated, err := backends.Subordinates.Get("https://allowed-post.example.org")
 		if err != nil {
@@ -629,9 +629,9 @@ func TestSubordinateConstraintsAllowedEntityTypes(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types/delete_me", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		updated, err := backends.Subordinates.Get("https://allowed-delete.example.org")
 		if err != nil {
@@ -686,7 +686,7 @@ func TestGeneralConstraintsAll(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/constraints", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.ConstraintSpecification
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -702,9 +702,9 @@ func TestGeneralConstraintsAll(t *testing.T) {
 		t.Parallel()
 		app, _ := setupGeneralConstraintsApp(t)
 		req := httptest.NewRequest("GET", "/subordinates/constraints", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("PUT Success", func(t *testing.T) {
@@ -714,9 +714,9 @@ func TestGeneralConstraintsAll(t *testing.T) {
 		body := `{"max_path_length": 3}`
 		req := httptest.NewRequest("PUT", "/subordinates/constraints", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.ConstraintSpecification
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &updated); err != nil {
@@ -745,7 +745,7 @@ func TestGeneralConstraintsMaxPathLength(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/constraints/max-path-length", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result int
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -767,9 +767,9 @@ func TestGeneralConstraintsMaxPathLength(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/constraints/max-path-length", strings.NewReader(`3`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.ConstraintSpecification
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &updated); err != nil {
@@ -795,9 +795,9 @@ func TestGeneralConstraintsMaxPathLength(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/subordinates/constraints/max-path-length", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		var updated oidfed.ConstraintSpecification
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &updated); err != nil {
@@ -830,7 +830,7 @@ func TestGeneralConstraintsNamingConstraints(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/constraints/naming-constraints", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result oidfed.NamingConstraints
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -854,9 +854,9 @@ func TestGeneralConstraintsNamingConstraints(t *testing.T) {
 		body := `{"permitted": ["new.example.com"], "excluded": ["bad.example.com"]}`
 		req := httptest.NewRequest("PUT", "/subordinates/constraints/naming-constraints", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.ConstraintSpecification
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &updated); err != nil {
@@ -883,9 +883,9 @@ func TestGeneralConstraintsNamingConstraints(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/subordinates/constraints/naming-constraints", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		var updated oidfed.ConstraintSpecification
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &updated); err != nil {
@@ -916,7 +916,7 @@ func TestGeneralConstraintsAllowedEntityTypes(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/constraints/allowed-entity-types", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result []string
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -939,9 +939,9 @@ func TestGeneralConstraintsAllowedEntityTypes(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/constraints/allowed-entity-types", strings.NewReader(`["new_type"]`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.ConstraintSpecification
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &updated); err != nil {
@@ -963,9 +963,9 @@ func TestGeneralConstraintsAllowedEntityTypes(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/subordinates/constraints/allowed-entity-types", strings.NewReader(`merged_type`))
 		req.Header.Set("Content-Type", "text/plain")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 
 		var updated oidfed.ConstraintSpecification
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &updated); err != nil {
@@ -986,9 +986,9 @@ func TestGeneralConstraintsAllowedEntityTypes(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/subordinates/constraints/allowed-entity-types/delete_me", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated oidfed.ConstraintSpecification
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyConstraints, &updated); err != nil {
@@ -1031,7 +1031,7 @@ func TestSubordinateConstraintsPostAll(t *testing.T) {
 
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 
 		var result oidfed.ConstraintSpecification
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1062,7 +1062,7 @@ func TestSubordinateConstraintsPostAll(t *testing.T) {
 
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/constraints", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 
 		var result oidfed.ConstraintSpecification
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1078,8 +1078,8 @@ func TestSubordinateConstraintsPostAll(t *testing.T) {
 		app, _ := setupSubordinateConstraintsApp(t)
 
 		req := httptest.NewRequest("POST", "/subordinates/9999/constraints", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		assertStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -1107,7 +1107,7 @@ func TestSubordinateConstraintsEdgeCases(t *testing.T) {
 			strings.NewReader(`0`))
 		req.Header.Set("Content-Type", "application/json")
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result int
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1160,7 +1160,7 @@ func TestSubordinateConstraintsEdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types", saved.ID),
 			strings.NewReader(`openid_provider`))
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 
 		var result []string
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1192,7 +1192,7 @@ func TestSubordinateConstraintsEdgeCases(t *testing.T) {
 		// DELETE a type that doesn't exist — returns unchanged list
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types/nonexistent_type", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result []string
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -1219,8 +1219,8 @@ func TestSubordinateConstraintsEdgeCases(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/constraints/allowed-entity-types/any", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNoContent)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 	})
 
 	t.Run("PutAll/NegativeMaxPathLength", func(t *testing.T) {

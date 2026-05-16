@@ -95,7 +95,7 @@ func TestAuthorityHintsList(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/entity-configuration/authority-hints/", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var got []smodel.AuthorityHint
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -119,8 +119,8 @@ func TestAuthorityHintsList(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/entity-configuration/authority-hints/", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusInternalServerError)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusInternalServerError)
 	})
 }
 
@@ -147,7 +147,7 @@ func TestAuthorityHintsCreate(t *testing.T) {
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, body, http.StatusCreated)
 
 		var got smodel.AuthorityHint
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -177,8 +177,8 @@ func TestAuthorityHintsCreate(t *testing.T) {
 			strings.NewReader(`{"entity_id":`),
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusBadRequest)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusBadRequest)
 		requireEntityConfigurationCache(t, true, cacheValue)
 	})
 
@@ -196,8 +196,8 @@ func TestAuthorityHintsCreate(t *testing.T) {
 			strings.NewReader(`{"entity_id":"https://ta.example"}`),
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusConflict)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusConflict)
 		requireEntityConfigurationCache(t, true, cacheValue)
 	})
 }
@@ -219,7 +219,7 @@ func TestAuthorityHintsGet(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/entity-configuration/authority-hints/42", http.NoBody)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var got smodel.AuthorityHint
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -240,8 +240,8 @@ func TestAuthorityHintsGet(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/entity-configuration/authority-hints/missing", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -269,7 +269,7 @@ func TestAuthorityHintsUpdate(t *testing.T) {
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 		resp, body := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var got smodel.AuthorityHint
 		if err := json.Unmarshal(body, &got); err != nil {
@@ -301,8 +301,8 @@ func TestAuthorityHintsUpdate(t *testing.T) {
 			strings.NewReader(`{"entity_id":"https://updated.example"}`),
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 		requireEntityConfigurationCache(t, true, cacheValue)
 	})
 
@@ -320,8 +320,8 @@ func TestAuthorityHintsUpdate(t *testing.T) {
 			strings.NewReader(`{"entity_id":"https://updated.example"}`),
 		)
 		req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusConflict)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusConflict)
 		requireEntityConfigurationCache(t, true, cacheValue)
 	})
 }
@@ -342,8 +342,8 @@ func TestAuthorityHintsDelete(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodDelete, "/entity-configuration/authority-hints/11", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNoContent)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 		if gotID != "11" {
 			t.Fatalf("expected authority hint id %q, got %q", "11", gotID)
 		}
@@ -359,8 +359,8 @@ func TestAuthorityHintsDelete(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodDelete, "/entity-configuration/authority-hints/missing", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, http.StatusNotFound)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, http.StatusNotFound)
 		requireEntityConfigurationCache(t, true, cacheValue)
 	})
 }
