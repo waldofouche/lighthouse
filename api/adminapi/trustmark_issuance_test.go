@@ -1509,9 +1509,12 @@ func TestTrustMarkSubjectHandlers_RealStoragePersistence(t *testing.T) {
 			t.Fatalf("expected profile to be map[string]any, got %T", spec.AdditionalClaims["profile"])
 		}
 
-		// BUG: copyAdditionalClaims uses a shallow map copy, meaning mutating the subject accidentally mutates the in-memory spec. Expected 'gold', but asserting 'silver' to document the bug.
-		if profile["tier"] != "silver" {
-			t.Errorf("Memory isolation failed: expected spec tier to be 'silver', got %v", profile["tier"])
+		// NOTE: With real storage, the DB provides isolation — Get() returns a
+		// fresh deserialized copy each time. The shallow copy in copyAdditionalClaims
+		// is a latent risk that would manifest if handlers cached spec objects
+		// in memory across requests, but the DB boundary prevents mutation here.
+		if profile["tier"] != "gold" {
+			t.Errorf("Memory isolation failed: spec tier should remain 'gold', got %v", profile["tier"])
 		}
 	})
 }
