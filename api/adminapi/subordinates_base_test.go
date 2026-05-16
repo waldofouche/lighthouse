@@ -177,6 +177,26 @@ func TestGetSubordinates(t *testing.T) {
 
 		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
 	})
+
+	t.Run("EmptyStatus", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupSubordinateBaseApp(t)
+
+		req := httptest.NewRequest("GET", "/subordinates?status=", http.NoBody)
+		resp, respBody := doRequest(t, app, req)
+
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+	})
+
+	t.Run("EmptyEntityType", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupSubordinateBaseApp(t)
+
+		req := httptest.NewRequest("GET", "/subordinates?entity_type=", http.NoBody)
+		resp, respBody := doRequest(t, app, req)
+
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+	})
 }
 
 // --- POST /subordinates TESTS ---
@@ -807,6 +827,48 @@ func TestGetSubordinateHistory(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?limit=abc", saved.ID), http.NoBody)
+		resp, respBody := doRequest(t, app, req)
+
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+	})
+
+	t.Run("InvalidLimit_Negative", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateBaseApp(t)
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{EntityID: "https://limit-neg.example.org"},
+		})
+		saved, _ := backends.Subordinates.Get("https://limit-neg.example.org")
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?limit=-1", saved.ID), http.NoBody)
+		resp, respBody := doRequest(t, app, req)
+
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+	})
+
+	t.Run("InvalidOffset_TooLarge", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateBaseApp(t)
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{EntityID: "https://offset-large.example.org"},
+		})
+		saved, _ := backends.Subordinates.Get("https://offset-large.example.org")
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?offset=999999999", saved.ID), http.NoBody)
+		resp, respBody := doRequest(t, app, req)
+
+		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")
+	})
+
+	t.Run("InvalidFrom_Unparseable", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateBaseApp(t)
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{EntityID: "https://from-abc.example.org"},
+		})
+		saved, _ := backends.Subordinates.Get("https://from-abc.example.org")
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/history?from=abc", saved.ID), http.NoBody)
 		resp, respBody := doRequest(t, app, req)
 
 		assertErrorResponse(t, resp, respBody, http.StatusBadRequest, "invalid_request")

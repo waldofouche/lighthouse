@@ -190,6 +190,53 @@ func TestSubordinateJWKS(t *testing.T) {
 		assertStatus(t, resp, http.StatusBadRequest)
 	})
 
+	t.Run("PUT InvalidBody_EmptyKeys", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateKeysApp(t)
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{EntityID: "https://jwks-empty-put.example.org"},
+		})
+		saved, _ := backends.Subordinates.Get("https://jwks-empty-put.example.org")
+
+		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/jwks", saved.ID), strings.NewReader(`{"keys":[]}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, _ := doRequest(t, app, req)
+
+		assertStatus(t, resp, http.StatusBadRequest)
+	})
+
+	t.Run("PUT InvalidBody_MissingKty", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateKeysApp(t)
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{EntityID: "https://jwks-missingkty-put.example.org"},
+		})
+		saved, _ := backends.Subordinates.Get("https://jwks-missingkty-put.example.org")
+
+		body := `{"keys":[{"kid":"new-put-key","n":"0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw","e":"AQAB"}]}`
+		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/jwks", saved.ID), strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, _ := doRequest(t, app, req)
+
+		assertStatus(t, resp, http.StatusBadRequest)
+	})
+
+	t.Run("PUT InvalidBody_InvalidBase64", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateKeysApp(t)
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{EntityID: "https://jwks-badb64-put.example.org"},
+		})
+		saved, _ := backends.Subordinates.Get("https://jwks-badb64-put.example.org")
+
+		body := `{"keys":[{"kty":"RSA","kid":"new-put-key","n":"invalid#base64","e":"AQAB"}]}`
+		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/jwks", saved.ID), strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, _ := doRequest(t, app, req)
+
+		assertStatus(t, resp, http.StatusBadRequest)
+	})
+
 	t.Run("POST Success", func(t *testing.T) {
 		t.Parallel()
 		app, backends := setupSubordinateKeysApp(t)
