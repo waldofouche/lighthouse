@@ -303,6 +303,21 @@ func (s *TrustMarkTypesStorage) List() ([]model.TrustMarkType, error) {
 }
 
 func (s *TrustMarkTypesStorage) Create(req model.AddTrustMarkType) (*model.TrustMarkType, error) {
+	var existing model.TrustMarkType
+	result := s.db.Unscoped().Where("trust_mark_type = ?", req.TrustMarkType).First(&existing)
+	if result.Error == nil {
+		if existing.DeletedAt.Valid {
+			existing.DeletedAt = gorm.DeletedAt{}
+			existing.TrustMarkType = req.TrustMarkType
+			existing.Description = req.Description
+			if err := s.db.Save(&existing).Error; err != nil {
+				return nil, errors.Wrap(err, "trust_mark_types: reactivation failed")
+			}
+			return &existing, nil
+		}
+		return nil, model.AlreadyExistsError("trust mark type already exists")
+	}
+
 	item := &model.TrustMarkType{
 		TrustMarkType: req.TrustMarkType,
 		Description:   req.Description,
@@ -313,13 +328,11 @@ func (s *TrustMarkTypesStorage) Create(req model.AddTrustMarkType) (*model.Trust
 		}
 		return nil, errors.Wrap(err, "trust_mark_types: create failed")
 	}
-	// Optional owner
 	if req.TrustMarkOwner != nil {
 		if _, err := s.CreateOwner(strconv.FormatUint(uint64(item.ID), 10), *req.TrustMarkOwner); err != nil {
 			return nil, err
 		}
 	}
-	// Optional issuers
 	if len(req.TrustMarkIssuers) > 0 {
 		if _, err := s.SetIssuers(strconv.FormatUint(uint64(item.ID), 10), req.TrustMarkIssuers); err != nil {
 			return nil, err
