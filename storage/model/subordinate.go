@@ -33,6 +33,25 @@ type BasicSubordinateInfo struct {
 
 func (ExtendedSubordinateInfo) TableName() string { return "subordinates" }
 
+// MarshalJSON customizes ExtendedSubordinateInfo JSON serialization.
+// It transforms additional_claims from an array of objects to a simple {"claim": "value"} object.
+func (e ExtendedSubordinateInfo) MarshalJSON() ([]byte, error) {
+	type Alias ExtendedSubordinateInfo
+	
+	additionalClaimsMap := make(map[string]any, len(e.SubordinateAdditionalClaims))
+	for _, claim := range e.SubordinateAdditionalClaims {
+		additionalClaimsMap[claim.Claim] = claim.Value
+	}
+	
+	return json.Marshal(&struct {
+		AdditionalClaims map[string]any `json:"additional_claims,omitempty"`
+		*Alias
+	}{
+		AdditionalClaims: additionalClaimsMap,
+		Alias:            (*Alias)(&e),
+	})
+}
+
 // MarshalJSON customizes ExtendedSubordinateInfo JSON to expose entity types as []string
 func (et SubordinateEntityType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(et.EntityType)

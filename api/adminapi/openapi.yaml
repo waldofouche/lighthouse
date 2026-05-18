@@ -4735,10 +4735,12 @@ components:
       minimum: 0
       example: 86400
     AdditionalClaims:
-      description: A list of AdditionalClaim.
-      type: array
-      items:
-        $ref: '#/components/schemas/AdditionalClaim'
+      description: Additional custom claims as key-value pairs where keys are claim names and values are the claim values.
+      type: object
+      additionalProperties: true
+      example:
+        organization_name: Example Organization
+        homepage_uri: https://example.org
     AdditionalClaim:
       description: A single additional custom claim consisting of claim name, value, and crit flag.
       required:
