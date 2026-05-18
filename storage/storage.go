@@ -660,6 +660,21 @@ func (s *TrustMarkOwnersStorage) List() ([]model.TrustMarkOwner, error) {
 }
 
 func (s *TrustMarkOwnersStorage) Create(req model.AddTrustMarkOwner) (*model.TrustMarkOwner, error) {
+	var existing model.TrustMarkOwner
+	result := s.db.Unscoped().Where("entity_id = ?", req.EntityID).First(&existing)
+	if result.Error == nil {
+		if existing.DeletedAt.Valid {
+			existing.DeletedAt = gorm.DeletedAt{}
+			existing.EntityID = req.EntityID
+			existing.JWKS = req.JWKS
+			if err := s.db.Save(&existing).Error; err != nil {
+				return nil, errors.Wrap(err, "trust_mark_owners: reactivation failed")
+			}
+			return &existing, nil
+		}
+		return nil, model.AlreadyExistsError("trust mark owner already exists")
+	}
+
 	item := &model.TrustMarkOwner{
 		EntityID: req.EntityID,
 		JWKS:     req.JWKS,
