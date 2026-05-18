@@ -35,6 +35,27 @@ func (s *PublishedTrustMarksStorage) Create(add model.AddTrustMark) (*model.Publ
 		return nil, err
 	}
 
+	var existing model.PublishedTrustMark
+	result := s.db.Unscoped().Where("trust_mark_type = ?", trustMarkType).First(&existing)
+	if result.Error == nil {
+		if existing.DeletedAt.Valid {
+			existing.DeletedAt = gorm.DeletedAt{}
+			existing.TrustMarkType = trustMarkType
+			existing.TrustMarkIssuer = trustMarkIssuer
+			existing.TrustMarkJWT = add.TrustMark
+			existing.Refresh = add.Refresh
+			existing.MinLifetime = add.MinLifetime
+			existing.RefreshGracePeriod = add.RefreshGracePeriod
+			existing.RefreshRateLimit = add.RefreshRateLimit
+			existing.SelfIssuanceSpec = add.SelfIssuanceSpec
+			if err := s.db.Save(&existing).Error; err != nil {
+				return nil, errors.Wrap(err, "published_trust_marks: reactivation failed")
+			}
+			return &existing, nil
+		}
+		return nil, model.AlreadyExistsError("trust mark with this type already exists")
+	}
+
 	item := &model.PublishedTrustMark{
 		TrustMarkType:      trustMarkType,
 		TrustMarkIssuer:    trustMarkIssuer,
