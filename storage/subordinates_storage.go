@@ -32,8 +32,8 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 					existing.Description = info.Description
 
 					// Handle JWKS: delete old one if exists, create new if provided
-					if existing.JWKSID != 0 {
-						if err := tx.Unscoped().Delete(&model.JWKS{}, existing.JWKSID).Error; err != nil {
+					if existing.JWKSID != nil {
+						if err := tx.Unscoped().Delete(&model.JWKS{}, *existing.JWKSID).Error; err != nil {
 							return errors.Wrap(err, "failed to delete old JWKS")
 						}
 					}
@@ -41,9 +41,9 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 						if err := tx.Create(&info.JWKS).Error; err != nil {
 							return errors.Wrap(err, "failed to create new JWKS")
 						}
-						existing.JWKSID = info.JWKS.ID
+						existing.JWKSID = &info.JWKS.ID
 					} else {
-						existing.JWKSID = 0
+						existing.JWKSID = nil
 					}
 
 					// Save reactivated subordinate
@@ -279,12 +279,12 @@ func (s *SubordinateStorage) UpdateJWKSByDBID(id string, jwks model.JWKS) (*mode
 				return errors.Wrap(err, "failed to find subordinate by id")
 			}
 
-			if info.JWKSID == 0 {
+			if info.JWKSID == nil {
 				// No JWKS exists yet, create a new one
 				if err := tx.Create(&jwks).Error; err != nil {
 					return errors.Wrap(err, "failed to create JWKS")
 				}
-				info.JWKSID = jwks.ID
+				info.JWKSID = &jwks.ID
 				info.JWKS = jwks
 				if err := tx.Save(&info).Error; err != nil {
 					return errors.Wrap(err, "failed to link JWKS to subordinate")

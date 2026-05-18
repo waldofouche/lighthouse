@@ -12,7 +12,7 @@ import (
 // Note: MetadataPolicyCrit is stored globally in the KV store, not per-subordinate.
 type ExtendedSubordinateInfo struct {
 	BasicSubordinateInfo
-	JWKSID                      uint                            `json:"-"`
+	JWKSID                      *uint                           `json:"-" gorm:"null"`
 	JWKS                        JWKS                            `json:"jwks"`
 	Metadata                    *oidfed.Metadata                `gorm:"serializer:json" json:"metadata,omitempty"`
 	MetadataPolicy              *oidfed.MetadataPolicies        `gorm:"serializer:json" json:"metadata_policy,omitempty"`
