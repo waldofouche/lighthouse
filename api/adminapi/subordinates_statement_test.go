@@ -79,7 +79,7 @@ func TestSubordinateStatement(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result map[string]any
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -99,8 +99,136 @@ func TestSubordinateStatement(t *testing.T) {
 		app, _ := setupSubordinateStatementApp(t)
 
 		req := httptest.NewRequest("GET", "/subordinates/9999/statement", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatusOneOf(t, resp, http.StatusNotFound, http.StatusInternalServerError)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
+	})
+
+	t.Run("CriticalExtensions", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateStatementApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://crit-ext.example.org",
+			},
+			SubordinateAdditionalClaims: []model.SubordinateAdditionalClaim{
+				{Claim: "custom_claim", Value: "custom_val", Crit: true},
+				{Claim: "normal_claim", Value: "normal_val", Crit: false},
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://crit-ext.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, body, http.StatusOK)
+
+		var result map[string]any
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		// Verify critical extensions contains only the crit=true claim
+		critExts, ok := result["crit"].([]any)
+		if !ok || len(critExts) != 1 {
+			t.Fatalf("Expected crit to have 1 entry, got %v", result["crit"])
+		}
+		if critExts[0] != "custom_claim" {
+			t.Errorf("Expected crit[0] = 'custom_claim', got %v", critExts[0])
+		}
+
+		// Verify both claims appear in the extra payload
+		if result["custom_claim"] != "custom_val" {
+			t.Errorf("Expected custom_claim in extra, got %v", result["custom_claim"])
+		}
+		if result["normal_claim"] != "normal_val" {
+			t.Errorf("Expected normal_claim in extra, got %v", result["normal_claim"])
+		}
+	})
+
+	t.Run("LifetimeDefault", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateStatementApp(t)
+
+		// No lifetime set in KV — GetSubordinateStatementLifetime returns default with no error.
+		// This covers the "missing config" path, NOT the error fallback.
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://lifetime-default.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://lifetime-default.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, body, http.StatusOK)
+
+		var result map[string]any
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		// Verify iat and exp are set — exp should be iat + default lifetime
+		iat, ok1 := result["iat"].(float64)
+		exp, ok2 := result["exp"].(float64)
+		if !ok1 || !ok2 {
+			t.Fatalf("Expected iat and exp as numbers, got iat=%v exp=%v", result["iat"], result["exp"])
+		}
+		// Default lifetime is 600000 seconds. Verify exp-iat is approximately that.
+		diff := exp - iat
+		if diff < 599999 || diff > 600001 {
+			t.Errorf("Expected exp-iat ≈ 600000 (default), got %.0f", diff)
+		}
+	})
+
+	t.Run("LifetimeErrorFallback", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateStatementApp(t)
+
+		// Seed invalid JSON into the lifetime KV key so that GetSubordinateStatementLifetime
+		// returns an error. This exercises the `if err != nil` fallback at statement.go:50-51.
+		if err := backends.KV.Set(
+			model.KeyValueScopeSubordinateStatement,
+			model.KeyValueKeyLifetime,
+			[]byte(`"not-an-integer"`),
+		); err != nil {
+			t.Fatalf("Failed to seed invalid lifetime: %v", err)
+		}
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://lifetime-error.example.org",
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://lifetime-error.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/statement", saved.ID), http.NoBody)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, body, http.StatusOK)
+
+		var result map[string]any
+		if err := json.Unmarshal(body, &result); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		// Even with a KV error, the handler should fall back to DefaultSubordinateStatementLifetime
+		iat, ok1 := result["iat"].(float64)
+		exp, ok2 := result["exp"].(float64)
+		if !ok1 || !ok2 {
+			t.Fatalf("Expected iat and exp as numbers, got iat=%v exp=%v", result["iat"], result["exp"])
+		}
+		diff := exp - iat
+		if diff < 599999 || diff > 600001 {
+			t.Errorf("Expected exp-iat ≈ 600000 (default fallback on error), got %.0f", diff)
+		}
 	})
 }

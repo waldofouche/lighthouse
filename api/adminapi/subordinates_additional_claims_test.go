@@ -61,7 +61,7 @@ func TestSubordinateAdditionalClaimsAll(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/additional-claims", saved.ID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result []model.SubordinateAdditionalClaim
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -81,7 +81,7 @@ func TestSubordinateAdditionalClaimsAll(t *testing.T) {
 
 		// The ListAdditionalClaims endpoint returns an empty array when the subordinate has no claims
 		// or doesn't exist, so we expect a 200 instead of a 404 here.
-		assertStatus(t, resp, http.StatusOK)
+		assertStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != "[]" {
 			t.Errorf("Expected empty JSON array '[]', got %s", string(body))
@@ -113,9 +113,9 @@ func TestSubordinateAdditionalClaimsAll(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/additional-claims", saved.ID), bytes.NewReader(data))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		updated, err := backends.Subordinates.Get("https://claims-put.example.org")
 		if err != nil {
@@ -157,9 +157,9 @@ func TestSubordinateAdditionalClaimsAll(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/additional-claims", saved.ID), strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("POST Success", func(t *testing.T) {
@@ -182,9 +182,9 @@ func TestSubordinateAdditionalClaimsAll(t *testing.T) {
 		body := `{"claim": "new_claim", "value": "new_val", "crit": true}`
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/additional-claims", saved.ID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 
 		updated, err := backends.Subordinates.Get("https://claims-post.example.org")
 		if err != nil {
@@ -226,9 +226,45 @@ func TestSubordinateAdditionalClaimsAll(t *testing.T) {
 
 		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/additional-claims", saved.ID), strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
+	})
+
+	t.Run("POST Duplicate/Conflict", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateAdditionalClaimsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://claims-dup-post.example.org",
+			},
+			SubordinateAdditionalClaims: []model.SubordinateAdditionalClaim{
+				{Claim: "existing_claim", Value: "val1"},
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://claims-dup-post.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		// POST with same claim name → should return 409 Conflict
+		body := `{"claim": "existing_claim", "value": "val2"}`
+		req := httptest.NewRequest("POST", fmt.Sprintf("/subordinates/%d/additional-claims", saved.ID), strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
+	})
+
+	t.Run("POST NotFound/Subordinate", func(t *testing.T) {
+		t.Parallel()
+		app, _ := setupSubordinateAdditionalClaimsApp(t)
+
+		body := `{"claim": "test", "value": "test"}`
+		req := httptest.NewRequest("POST", "/subordinates/9999/additional-claims", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusNotFound, "not_found")
 	})
 }
 
@@ -264,7 +300,7 @@ func TestSubordinateAdditionalClaimByID(t *testing.T) {
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/additional-claims/%d", saved.ID, claimID), http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result model.SubordinateAdditionalClaim
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -290,9 +326,9 @@ func TestSubordinateAdditionalClaimByID(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/subordinates/%d/additional-claims/missing", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatusOneOf(t, resp, http.StatusNotFound, http.StatusInternalServerError)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("PUT Success", func(t *testing.T) {
@@ -327,9 +363,9 @@ func TestSubordinateAdditionalClaimByID(t *testing.T) {
 		body := `{"value": "new_value", "crit": true}`
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/additional-claims/%d", saved.ID, claimID), strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		updated, err := backends.Subordinates.Get("https://claim-by-id-put.example.org")
 		if err != nil {
@@ -372,9 +408,46 @@ func TestSubordinateAdditionalClaimByID(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/additional-claims/some_claim", saved.ID), strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
+	})
+
+	t.Run("PUT Duplicate/Conflict", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupSubordinateAdditionalClaimsApp(t)
+
+		backends.Subordinates.Add(model.ExtendedSubordinateInfo{
+			BasicSubordinateInfo: model.BasicSubordinateInfo{
+				EntityID: "https://claim-dup-put.example.org",
+			},
+			SubordinateAdditionalClaims: []model.SubordinateAdditionalClaim{
+				{Claim: "claim_a", Value: "val_a"},
+				{Claim: "claim_b", Value: "val_b"},
+			},
+		})
+		saved, err := backends.Subordinates.Get("https://claim-dup-put.example.org")
+		if err != nil {
+			t.Fatalf("Failed to get subordinate: %v", err)
+		}
+
+		claims, err := backends.Subordinates.ListAdditionalClaims(fmt.Sprintf("%d", saved.ID))
+		if err != nil {
+			t.Fatalf("Failed to list claims: %v", err)
+		}
+		// Find claim_b's ID, then try to rename it to "claim_a" which already exists
+		var claimBID uint
+		for _, c := range claims {
+			if c.Claim == "claim_b" {
+				claimBID = c.ID
+			}
+		}
+
+		body := `{"claim": "claim_a", "value": "new_val"}`
+		req := httptest.NewRequest("PUT", fmt.Sprintf("/subordinates/%d/additional-claims/%d", saved.ID, claimBID), strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
 	})
 
 	t.Run("DELETE Success", func(t *testing.T) {
@@ -407,9 +480,9 @@ func TestSubordinateAdditionalClaimByID(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/additional-claims/%d", saved.ID, claimID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		updated, err := backends.Subordinates.Get("https://claim-by-id-delete.example.org")
 		if err != nil {
@@ -450,9 +523,9 @@ func TestSubordinateAdditionalClaimByID(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d/additional-claims/not_here", saved.ID), http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatusOneOf(t, resp, http.StatusNotFound, http.StatusInternalServerError)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 }
 
@@ -491,7 +564,7 @@ func TestGeneralAdditionalClaimsAll(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/additional-claims", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result []generalAdditionalClaim
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -509,7 +582,7 @@ func TestGeneralAdditionalClaimsAll(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/additional-claims", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		if string(body) != "[]" {
 			t.Errorf("Expected empty JSON object, got %s", string(body))
@@ -534,9 +607,9 @@ func TestGeneralAdditionalClaimsAll(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated []generalAdditionalClaim
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyAdditionalClaims, &updated); err != nil {
@@ -568,9 +641,9 @@ func TestGeneralAdditionalClaimsAll(t *testing.T) {
 		body := `{"claim": "merged_global", "value": "merged_val", "crit": true}`
 		req := httptest.NewRequest("POST", "/subordinates/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusCreated)
+		requireStatus(t, resp, bodyBytes, http.StatusCreated)
 
 		var updated []generalAdditionalClaim
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyAdditionalClaims, &updated); err != nil {
@@ -609,7 +682,7 @@ func TestGeneralAdditionalClaimByID(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/additional-claims/1", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var result generalAdditionalClaim
 		if err := json.Unmarshal(body, &result); err != nil {
@@ -629,9 +702,9 @@ func TestGeneralAdditionalClaimByID(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("GET", "/subordinates/additional-claims/999", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusNotFound)
+		assertStatus(t, resp, bodyBytes, http.StatusNotFound)
 	})
 
 	t.Run("PUT Success", func(t *testing.T) {
@@ -649,9 +722,9 @@ func TestGeneralAdditionalClaimByID(t *testing.T) {
 		body := `{"value": "new_global_val", "crit": true}`
 		req := httptest.NewRequest("PUT", "/subordinates/additional-claims/1", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, bodyBytes, http.StatusOK)
 
 		var updated []generalAdditionalClaim
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyAdditionalClaims, &updated); err != nil {
@@ -669,6 +742,26 @@ func TestGeneralAdditionalClaimByID(t *testing.T) {
 		}
 	})
 
+	t.Run("PUT Duplicate/Conflict", func(t *testing.T) {
+		t.Parallel()
+		app, backends := setupGeneralAdditionalClaimsApp(t)
+
+		claimsList := []generalAdditionalClaim{
+			{ID: 1, Claim: "claim_x", Value: "val_x", Crit: false},
+			{ID: 2, Claim: "claim_y", Value: "val_y", Crit: true},
+		}
+		if err := backends.KV.SetAny(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyAdditionalClaims, claimsList); err != nil {
+			t.Fatalf("Failed to set KV value: %v", err)
+		}
+
+		// Try renaming claim_y (ID=2) to "claim_x" which already exists
+		body := `{"claim": "claim_x", "value": "new_val"}`
+		req := httptest.NewRequest("PUT", "/subordinates/additional-claims/2", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+		assertErrorResponse(t, resp, respBody, http.StatusConflict, "invalid_request")
+	})
+
 	t.Run("DELETE Success", func(t *testing.T) {
 		t.Parallel()
 		app, backends := setupGeneralAdditionalClaimsApp(t)
@@ -682,9 +775,9 @@ func TestGeneralAdditionalClaimByID(t *testing.T) {
 		}
 
 		req := httptest.NewRequest("DELETE", "/subordinates/additional-claims/1", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusNoContent)
+		requireStatus(t, resp, bodyBytes, http.StatusNoContent)
 
 		var updated []generalAdditionalClaim
 		if _, err := backends.KV.GetAs(model.KeyValueScopeSubordinateStatement, model.KeyValueKeyAdditionalClaims, &updated); err != nil {

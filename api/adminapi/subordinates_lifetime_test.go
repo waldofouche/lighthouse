@@ -35,7 +35,7 @@ func TestSubordinateLifetime(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subordinates/lifetime", http.NoBody)
 		resp, body := doRequest(t, app, req)
 
-		requireStatus(t, resp, http.StatusOK)
+		requireStatus(t, resp, body, http.StatusOK)
 
 		var lifetime int
 		if err := json.Unmarshal(body, &lifetime); err != nil {
@@ -55,19 +55,15 @@ func TestSubordinateLifetime(t *testing.T) {
 		body := `7200`
 		putReq := httptest.NewRequest("PUT", "/subordinates/lifetime", strings.NewReader(body))
 		putReq.Header.Set("Content-Type", "application/json")
-		putResp, _ := doRequest(t, app, putReq)
+		putResp, putBody := doRequest(t, app, putReq)
 
-		if putResp.StatusCode != http.StatusOK {
-			t.Fatalf("Expected status 200, got %d", putResp.StatusCode)
-		}
+		requireStatus(t, putResp, putBody, http.StatusOK)
 
 		// GET to verify update
 		getReq := httptest.NewRequest("GET", "/subordinates/lifetime", http.NoBody)
 		getResp, b := doRequest(t, app, getReq)
 
-		if getResp.StatusCode != http.StatusOK {
-			t.Fatalf("Expected GET status 200, got %d", getResp.StatusCode)
-		}
+		requireStatus(t, getResp, b, http.StatusOK)
 
 		var lifetime int
 		if err := json.Unmarshal(b, &lifetime); err != nil {
@@ -95,9 +91,9 @@ func TestSubordinateLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/lifetime", strings.NewReader("bad json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("PUT EmptyBody", func(t *testing.T) {
@@ -106,9 +102,9 @@ func TestSubordinateLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/lifetime", strings.NewReader(""))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("PUT NegativeValue", func(t *testing.T) {
@@ -117,9 +113,9 @@ func TestSubordinateLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/lifetime", strings.NewReader("-100"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusBadRequest)
+		assertStatus(t, resp, bodyBytes, http.StatusBadRequest)
 	})
 
 	t.Run("GET StorageError", func(t *testing.T) {
@@ -133,9 +129,9 @@ func TestSubordinateLifetime(t *testing.T) {
 		registerGeneralSubordinateLifetime(app, kv)
 
 		req := httptest.NewRequest("GET", "/subordinates/lifetime", http.NoBody)
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusInternalServerError)
+		assertStatus(t, resp, bodyBytes, http.StatusInternalServerError)
 	})
 
 	t.Run("PUT StorageError", func(t *testing.T) {
@@ -150,8 +146,8 @@ func TestSubordinateLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/subordinates/lifetime", strings.NewReader("3600"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
+		resp, bodyBytes := doRequest(t, app, req)
 
-		assertStatus(t, resp, http.StatusInternalServerError)
+		assertStatus(t, resp, bodyBytes, http.StatusInternalServerError)
 	})
 }

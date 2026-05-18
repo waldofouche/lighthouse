@@ -6,6 +6,7 @@ import (
 )
 
 func TestYamlToJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		yamlData string
@@ -75,7 +76,9 @@ servers:
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := yamlToJSON([]byte(tt.yamlData))
 			if tt.wantErr {
 				if err == nil {
@@ -94,6 +97,7 @@ servers:
 }
 
 func TestConvertMapKeysToStrings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		input  any
@@ -163,7 +167,9 @@ func TestConvertMapKeysToStrings(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := convertMapKeysToStrings(tt.input)
 			tt.verify(t, result)
 		})

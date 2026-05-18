@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -78,22 +79,37 @@ type mockKeyValueStore struct {
 }
 
 func (m *mockKeyValueStore) Get(scope, key string) (datatypes.JSON, error) {
+	if m.getFn == nil {
+		return nil, nil
+	}
 	return m.getFn(scope, key)
 }
 
 func (m *mockKeyValueStore) GetAs(scope, key string, out any) (bool, error) {
+	if m.getAsFn == nil {
+		return false, nil
+	}
 	return m.getAsFn(scope, key, out)
 }
 
 func (m *mockKeyValueStore) Set(scope, key string, value datatypes.JSON) error {
+	if m.setFn == nil {
+		return nil
+	}
 	return m.setFn(scope, key, value)
 }
 
 func (m *mockKeyValueStore) SetAny(scope, key string, v any) error {
+	if m.setAnyFn == nil {
+		return nil
+	}
 	return m.setAnyFn(scope, key, v)
 }
 
 func (m *mockKeyValueStore) Delete(scope, key string) error {
+	if m.deleteFn == nil {
+		return nil
+	}
 	return m.deleteFn(scope, key)
 }
 
@@ -116,6 +132,26 @@ func newStubFedEntity() *mockFederationEntity {
 			return &oidfed.EntityStatementPayload{}, nil
 		},
 	}
+}
+
+func setupRealEntityConfigClaimsApp(t *testing.T) (*fiber.App, smodel.AdditionalClaimsStore) {
+	t.Helper()
+	store := newTestStorage(t)
+	claimsStore := store.AdditionalClaimsStorage()
+	app := setupEntityConfigTestApp(newStubFedEntity(), claimsStore, store.KeyValue())
+	return app, claimsStore
+}
+
+func requireEntityConfigClaimRecord(t *testing.T, store smodel.AdditionalClaimsStore, ident string) *smodel.EntityConfigurationAdditionalClaim {
+	t.Helper()
+	claim, err := store.Get(ident)
+	if err != nil {
+		t.Fatalf("failed to get entity configuration additional claim %q: %v", ident, err)
+	}
+	if claim == nil {
+		t.Fatalf("expected entity configuration additional claim %q to exist", ident)
+	}
+	return claim
 }
 
 // --- TESTS ---
@@ -167,7 +203,7 @@ func TestGetEntityConfiguration(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		var got oidfed.EntityStatementPayload
 		if err := json.Unmarshal(respBody, &got); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -193,8 +229,8 @@ func TestGetEntityConfiguration(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -218,7 +254,7 @@ func TestGetAdditionalClaims(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/additional-claims", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		var got []smodel.EntityConfigurationAdditionalClaim
 		if err := json.Unmarshal(respBody, &got); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -244,8 +280,8 @@ func TestGetAdditionalClaims(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/additional-claims", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -269,13 +305,49 @@ func TestPutAdditionalClaims(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		var got []smodel.EntityConfigurationAdditionalClaim
 		if err := json.Unmarshal(respBody, &got); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
 		}
 		if len(got) != 1 || got[0].Claim != "org_name" {
 			t.Errorf("unexpected response: %+v", got)
+		}
+	})
+
+	t.Run("SuccessWithObjectValues_RealStore", func(t *testing.T) {
+		t.Parallel()
+		app, store := setupRealEntityConfigClaimsApp(t)
+
+		body := `[
+			{"claim":"org_name","value":{"display":"ACME","labels":{"tier":"gold"}},"crit":false},
+			{"claim":"policy_flags","value":{"beta":true},"crit":true}
+		]`
+		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, respBody, http.StatusOK)
+
+		var got []smodel.EntityConfigurationAdditionalClaim
+		if err := json.Unmarshal(respBody, &got); err != nil {
+			t.Fatalf("failed to unmarshal PUT additional claims response: %v", err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("expected 2 claims in response, got %d", len(got))
+		}
+
+		storedOrg := requireEntityConfigClaimRecord(t, store, "org_name")
+		storedOrgValue := requireJSONMap(t, storedOrg.Value, "stored org_name value")
+		storedLabels := requireJSONMap(t, storedOrgValue["labels"], "stored org_name labels")
+		if storedOrgValue["display"] != "ACME" || storedLabels["tier"] != "gold" {
+			t.Fatalf("expected org_name object value to persist, got %+v", storedOrg.Value)
+		}
+
+		storedFlags := requireEntityConfigClaimRecord(t, store, "policy_flags")
+		storedFlagsValue := requireJSONMap(t, storedFlags.Value, "stored policy_flags value")
+		if storedFlagsValue["beta"] != true || !storedFlags.Crit {
+			t.Fatalf("expected policy_flags object value and crit to persist, got %+v", storedFlags)
 		}
 	})
 
@@ -289,8 +361,8 @@ func TestPutAdditionalClaims(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims", strings.NewReader("not-json"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("UniqueConstraintError", func(t *testing.T) {
@@ -308,8 +380,8 @@ func TestPutAdditionalClaims(t *testing.T) {
 		body := `[{"claim":"org_name","value":"ACME","crit":false}]`
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 409)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 409)
 	})
 
 	t.Run("StoreError", func(t *testing.T) {
@@ -327,8 +399,8 @@ func TestPutAdditionalClaims(t *testing.T) {
 		body := `[{"claim":"org_name","value":"ACME","crit":false}]`
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -352,13 +424,42 @@ func TestPostAdditionalClaim(t *testing.T) {
 		req := httptest.NewRequest("POST", "/entity-configuration/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 201)
+		requireStatus(t, resp, respBody, 201)
 		var got smodel.EntityConfigurationAdditionalClaim
 		if err := json.Unmarshal(respBody, &got); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
 		}
 		if got.Claim != "org_name" {
 			t.Errorf("expected claim %q, got %q", "org_name", got.Claim)
+		}
+	})
+
+	t.Run("SuccessWithObjectValue_RealStore", func(t *testing.T) {
+		t.Parallel()
+		app, store := setupRealEntityConfigClaimsApp(t)
+
+		body := `{"claim":"org_profile","value":{"sector":"finance","flags":{"beta":true}},"crit":true}`
+		req := httptest.NewRequest("POST", "/entity-configuration/additional-claims", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, respBody, http.StatusCreated)
+
+		var created smodel.EntityConfigurationAdditionalClaim
+		if err := json.Unmarshal(respBody, &created); err != nil {
+			t.Fatalf("failed to unmarshal POST additional claim response: %v", err)
+		}
+		createdValue := requireJSONMap(t, created.Value, "created org_profile value")
+		createdFlags := requireJSONMap(t, createdValue["flags"], "created org_profile flags")
+		if createdValue["sector"] != "finance" || createdFlags["beta"] != true || !created.Crit {
+			t.Fatalf("expected object value in create response, got %+v", created)
+		}
+
+		stored := requireEntityConfigClaimRecord(t, store, "org_profile")
+		storedValue := requireJSONMap(t, stored.Value, "stored org_profile value")
+		storedFlags := requireJSONMap(t, storedValue["flags"], "stored org_profile flags")
+		if storedValue["sector"] != "finance" || storedFlags["beta"] != true || !stored.Crit {
+			t.Fatalf("expected object value to persist, got %+v", stored)
 		}
 	})
 
@@ -372,8 +473,8 @@ func TestPostAdditionalClaim(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/additional-claims", strings.NewReader("bad"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("AlreadyExists", func(t *testing.T) {
@@ -391,8 +492,8 @@ func TestPostAdditionalClaim(t *testing.T) {
 		body := `{"claim":"org_name","value":"ACME","crit":false}`
 		req := httptest.NewRequest("POST", "/entity-configuration/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 409)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 409)
 	})
 
 	t.Run("StoreError", func(t *testing.T) {
@@ -410,8 +511,8 @@ func TestPostAdditionalClaim(t *testing.T) {
 		body := `{"claim":"org_name","value":"ACME","crit":false}`
 		req := httptest.NewRequest("POST", "/entity-configuration/additional-claims", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -433,7 +534,7 @@ func TestGetAdditionalClaimByID(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/additional-claims/42", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		var got smodel.EntityConfigurationAdditionalClaim
 		if err := json.Unmarshal(respBody, &got); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
@@ -452,8 +553,8 @@ func TestGetAdditionalClaimByID(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/additional-claims/abc", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -469,8 +570,8 @@ func TestGetAdditionalClaimByID(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/additional-claims/99", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 404)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 404)
 	})
 }
 
@@ -494,13 +595,48 @@ func TestPutAdditionalClaimByID(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims/5", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		var got smodel.EntityConfigurationAdditionalClaim
 		if err := json.Unmarshal(respBody, &got); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
 		}
 		if got.Claim != "org_name" || got.Crit != true {
 			t.Errorf("unexpected response: %+v", got)
+		}
+	})
+
+	t.Run("SuccessWithObjectValue_RealStore", func(t *testing.T) {
+		t.Parallel()
+		app, store := setupRealEntityConfigClaimsApp(t)
+
+		seeded, err := store.Create(smodel.AddAdditionalClaim{Claim: "org_name", Value: "initial", Crit: false})
+		if err != nil {
+			t.Fatalf("failed to seed additional claim: %v", err)
+		}
+
+		body := `{"claim":"org_name","value":{"display":"UpdatedACME","meta":{"region":"eu"}},"crit":true}`
+		path := "/entity-configuration/additional-claims/" + strconv.FormatUint(uint64(seeded.ID), 10)
+		req := httptest.NewRequest("PUT", path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, respBody := doRequest(t, app, req)
+
+		requireStatus(t, resp, respBody, http.StatusOK)
+
+		var updated smodel.EntityConfigurationAdditionalClaim
+		if err := json.Unmarshal(respBody, &updated); err != nil {
+			t.Fatalf("failed to unmarshal PUT additional claim response: %v", err)
+		}
+		updatedValue := requireJSONMap(t, updated.Value, "updated org_name value")
+		updatedMeta := requireJSONMap(t, updatedValue["meta"], "updated org_name meta")
+		if updatedValue["display"] != "UpdatedACME" || updatedMeta["region"] != "eu" || !updated.Crit {
+			t.Fatalf("expected object value in update response, got %+v", updated)
+		}
+
+		stored := requireEntityConfigClaimRecord(t, store, strconv.FormatUint(uint64(seeded.ID), 10))
+		storedValue := requireJSONMap(t, stored.Value, "stored updated org_name value")
+		storedMeta := requireJSONMap(t, storedValue["meta"], "stored updated org_name meta")
+		if storedValue["display"] != "UpdatedACME" || storedMeta["region"] != "eu" || !stored.Crit {
+			t.Fatalf("expected object value to persist after update, got %+v", stored)
 		}
 	})
 
@@ -514,8 +650,8 @@ func TestPutAdditionalClaimByID(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims/5", strings.NewReader("bad"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -533,8 +669,8 @@ func TestPutAdditionalClaimByID(t *testing.T) {
 		body := `{"claim":"org_name","value":"X","crit":false}`
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims/999", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 404)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 404)
 	})
 
 	t.Run("AlreadyExists", func(t *testing.T) {
@@ -552,8 +688,8 @@ func TestPutAdditionalClaimByID(t *testing.T) {
 		body := `{"claim":"org_name","value":"X","crit":false}`
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims/5", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 409)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 409)
 	})
 
 	t.Run("StoreError", func(t *testing.T) {
@@ -571,8 +707,8 @@ func TestPutAdditionalClaimByID(t *testing.T) {
 		body := `{"claim":"org_name","value":"X","crit":false}`
 		req := httptest.NewRequest("PUT", "/entity-configuration/additional-claims/5", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -591,8 +727,8 @@ func TestDeleteAdditionalClaimByID(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/additional-claims/42", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 204)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 204)
 	})
 
 	t.Run("InvalidID", func(t *testing.T) {
@@ -604,8 +740,8 @@ func TestDeleteAdditionalClaimByID(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/additional-claims/abc", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -621,8 +757,8 @@ func TestDeleteAdditionalClaimByID(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/additional-claims/99", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 404)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 404)
 	})
 }
 
@@ -647,7 +783,7 @@ func TestGetLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/lifetime", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != "3600" {
 			t.Errorf("expected 3600, got %q", string(respBody))
 		}
@@ -667,7 +803,7 @@ func TestGetLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/lifetime", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != "86400" {
 			t.Errorf("expected 86400, got %q", string(respBody))
 		}
@@ -686,8 +822,8 @@ func TestGetLifetime(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/lifetime", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("ZeroValueReturnsDefault", func(t *testing.T) {
@@ -706,7 +842,7 @@ func TestGetLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/lifetime", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != "86400" {
 			t.Errorf("expected default 86400 for zero stored value, got %q", string(respBody))
 		}
@@ -736,7 +872,7 @@ func TestPutLifetime(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/entity-configuration/lifetime", strings.NewReader("7200"))
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != "7200" {
 			t.Errorf("expected 7200 in response, got %q", string(respBody))
 		}
@@ -752,8 +888,8 @@ func TestPutLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/lifetime", strings.NewReader(""))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -766,8 +902,8 @@ func TestPutLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/lifetime", strings.NewReader(`"not-int"`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("NegativeValue", func(t *testing.T) {
@@ -780,8 +916,8 @@ func TestPutLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/lifetime", strings.NewReader("-3600"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("StoreError", func(t *testing.T) {
@@ -798,8 +934,8 @@ func TestPutLifetime(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/lifetime", strings.NewReader("3600"))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("ZeroValueSuccess", func(t *testing.T) {
@@ -820,7 +956,7 @@ func TestPutLifetime(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/entity-configuration/lifetime", strings.NewReader("0"))
 		req.Header.Set("Content-Type", "application/json")
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != "0" {
 			t.Errorf("expected 0 in response, got %q", string(respBody))
 		}
@@ -846,7 +982,7 @@ func TestGetMetadata(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		var got oidfed.Metadata
 		if err := json.Unmarshal(respBody, &got); err != nil {
 			t.Fatalf("failed to parse metadata: %v", err)
@@ -870,7 +1006,7 @@ func TestGetMetadata(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != "{}" {
 			t.Errorf("expected {}, got %q", string(respBody))
 		}
@@ -889,8 +1025,8 @@ func TestGetMetadata(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreError", func(t *testing.T) {
@@ -906,8 +1042,8 @@ func TestGetMetadata(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -933,8 +1069,16 @@ func TestPutMetadata(t *testing.T) {
 		body := `{"openid_provider":{"issuer":"https://example.com"}}`
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		resp, respBody := doRequest(t, app, req)
+		requireStatus(t, resp, respBody, 200)
+
+		var got oidfed.Metadata
+		if err := json.Unmarshal(respBody, &got); err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+		if got.OpenIDProvider == nil || got.OpenIDProvider.Issuer != "https://example.com" {
+			t.Errorf("Expected OpenIDProvider.Issuer 'https://example.com', got %+v", got.OpenIDProvider)
+		}
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -947,8 +1091,8 @@ func TestPutMetadata(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata", strings.NewReader(`"not-an-object"`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("StoreError", func(t *testing.T) {
@@ -966,8 +1110,8 @@ func TestPutMetadata(t *testing.T) {
 		body := `{"openid_provider":{"issuer":"https://example.com"}}`
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -989,7 +1133,7 @@ func TestGetMetadataClaim(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider/issuer", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != `"https://example.com"` {
 			t.Errorf("expected string JSON, got %s", respBody)
 		}
@@ -1008,8 +1152,8 @@ func TestGetMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider/issuer", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 404)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 404)
 	})
 
 	t.Run("EntityTypeNotFound", func(t *testing.T) {
@@ -1025,8 +1169,8 @@ func TestGetMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/oauth_client/issuer", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 404)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 404)
 	})
 
 	t.Run("ClaimNotFound", func(t *testing.T) {
@@ -1042,8 +1186,8 @@ func TestGetMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider/missing", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 404)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 404)
 	})
 
 	t.Run("CorruptStoredMetadata", func(t *testing.T) {
@@ -1059,8 +1203,8 @@ func TestGetMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider/issuer", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreError", func(t *testing.T) {
@@ -1076,8 +1220,8 @@ func TestGetMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider/issuer", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -1104,8 +1248,12 @@ func TestPutMetadataClaim(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider/new", strings.NewReader(`456`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, body, 200)
+
+		if string(body) != "456" {
+			t.Errorf("Expected response body to echo back '456', got %q", string(body))
+		}
 	})
 
 	t.Run("Success_NoExistingMeta", func(t *testing.T) {
@@ -1128,8 +1276,12 @@ func TestPutMetadataClaim(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider/new", strings.NewReader(`456`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, body, 200)
+
+		if string(body) != "456" {
+			t.Errorf("Expected response body to echo back '456', got %q", string(body))
+		}
 	})
 
 	t.Run("EmptyBody", func(t *testing.T) {
@@ -1142,8 +1294,8 @@ func TestPutMetadataClaim(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider/new", strings.NewReader(""))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("StoreGetError", func(t *testing.T) {
@@ -1160,8 +1312,8 @@ func TestPutMetadataClaim(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider/new", strings.NewReader(`456`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreSetError", func(t *testing.T) {
@@ -1181,8 +1333,8 @@ func TestPutMetadataClaim(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider/new", strings.NewReader(`456`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("CorruptStoredMetadata", func(t *testing.T) {
@@ -1199,8 +1351,8 @@ func TestPutMetadataClaim(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider/new", strings.NewReader(`456`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -1229,8 +1381,8 @@ func TestDeleteMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider/target", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 204)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 204)
 	})
 
 	t.Run("LastClaimRemovesEntityType", func(t *testing.T) {
@@ -1253,8 +1405,8 @@ func TestDeleteMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider/only_claim", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 204)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 204)
 	})
 
 	t.Run("NoMetadataStored", func(t *testing.T) {
@@ -1270,8 +1422,8 @@ func TestDeleteMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider/target", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 204)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 204)
 	})
 
 	t.Run("EntityTypeNotInMeta", func(t *testing.T) {
@@ -1291,8 +1443,8 @@ func TestDeleteMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider/target", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 204)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 204)
 	})
 
 	t.Run("CorruptStoredMetadata", func(t *testing.T) {
@@ -1308,8 +1460,8 @@ func TestDeleteMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider/target", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreGetError", func(t *testing.T) {
@@ -1325,8 +1477,8 @@ func TestDeleteMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider/target", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreSetError", func(t *testing.T) {
@@ -1345,8 +1497,8 @@ func TestDeleteMetadataClaim(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider/target", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -1366,7 +1518,7 @@ func TestGetMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		var got map[string]json.RawMessage
 		if err := json.Unmarshal(respBody, &got); err != nil {
 			t.Fatalf("failed to decode: %v", err)
@@ -1390,7 +1542,7 @@ func TestGetMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != "{}" {
 			t.Errorf("expected {}, got %s", respBody)
 		}
@@ -1410,7 +1562,7 @@ func TestGetMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider", http.NoBody)
 		resp, respBody := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		requireStatus(t, resp, respBody, 200)
 		if string(respBody) != "{}" {
 			t.Errorf("expected {}, got %s", respBody)
 		}
@@ -1429,8 +1581,8 @@ func TestGetMetadataEntityType(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreError", func(t *testing.T) {
@@ -1446,8 +1598,8 @@ func TestGetMetadataEntityType(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("GET", "/entity-configuration/metadata/openid_provider", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -1480,8 +1632,16 @@ func TestPutMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, body, 200)
+
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(body, &got); err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+		if _, ok := got["new"]; !ok {
+			t.Errorf("Expected response to contain 'new' claim, got keys %v", got)
+		}
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -1494,8 +1654,8 @@ func TestPutMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider", strings.NewReader(`not-json`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("StoreGetError", func(t *testing.T) {
@@ -1512,8 +1672,8 @@ func TestPutMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreSetError", func(t *testing.T) {
@@ -1533,8 +1693,8 @@ func TestPutMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("CorruptStoredMetadata", func(t *testing.T) {
@@ -1551,8 +1711,8 @@ func TestPutMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -1579,8 +1739,16 @@ func TestPostMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, body, 200)
+
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(body, &got); err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+		if _, ok := got["new"]; !ok {
+			t.Errorf("Expected response to contain 'new' claim, got keys %v", got)
+		}
 	})
 
 	t.Run("Success_CreatesNew", func(t *testing.T) {
@@ -1604,8 +1772,16 @@ func TestPostMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 200)
+		resp, body := doRequest(t, app, req)
+		requireStatus(t, resp, body, 200)
+
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(body, &got); err != nil {
+			t.Fatalf("Failed to unmarshal response: %v", err)
+		}
+		if _, ok := got["new"]; !ok {
+			t.Errorf("Expected response to contain 'new' claim, got keys %v", got)
+		}
 	})
 
 	t.Run("InvalidBody", func(t *testing.T) {
@@ -1618,8 +1794,8 @@ func TestPostMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/metadata/openid_provider", strings.NewReader(`not-json`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 400)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 400)
 	})
 
 	t.Run("StoreGetError", func(t *testing.T) {
@@ -1636,8 +1812,8 @@ func TestPostMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreSetError", func(t *testing.T) {
@@ -1657,8 +1833,8 @@ func TestPostMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("CorruptStoredMetadata", func(t *testing.T) {
@@ -1675,8 +1851,8 @@ func TestPostMetadataEntityType(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/entity-configuration/metadata/openid_provider", strings.NewReader(`{"new":2}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
 
@@ -1705,8 +1881,8 @@ func TestDeleteMetadataEntityType(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 204)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 204)
 	})
 
 	t.Run("NoMetadataStored", func(t *testing.T) {
@@ -1722,8 +1898,8 @@ func TestDeleteMetadataEntityType(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 204)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 204)
 	})
 
 	t.Run("CorruptStoredMetadata", func(t *testing.T) {
@@ -1739,8 +1915,8 @@ func TestDeleteMetadataEntityType(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreGetError", func(t *testing.T) {
@@ -1756,8 +1932,8 @@ func TestDeleteMetadataEntityType(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 
 	t.Run("StoreSetError", func(t *testing.T) {
@@ -1776,7 +1952,7 @@ func TestDeleteMetadataEntityType(t *testing.T) {
 		)
 
 		req := httptest.NewRequest("DELETE", "/entity-configuration/metadata/openid_provider", http.NoBody)
-		resp, _ := doRequest(t, app, req)
-		requireStatus(t, resp, 500)
+		resp, bodyBytes := doRequest(t, app, req)
+		requireStatus(t, resp, bodyBytes, 500)
 	})
 }
