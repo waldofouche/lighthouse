@@ -67,6 +67,23 @@ func (s *AdditionalClaimsStorage) Create(item model.AddAdditionalClaim) (
 	if item.Claim == "" {
 		return nil, errors.New("additional_claims: claim is required")
 	}
+
+	var existing model.EntityConfigurationAdditionalClaim
+	result := s.db.Unscoped().Where("claim = ?", item.Claim).First(&existing)
+	if result.Error == nil {
+		if existing.DeletedAt.Valid {
+			existing.DeletedAt = gorm.DeletedAt{}
+			existing.Claim = item.Claim
+			existing.Value = item.Value
+			existing.Crit = item.Crit
+			if err := s.db.Save(&existing).Error; err != nil {
+				return nil, errors.Wrap(err, "additional_claims: reactivation failed")
+			}
+			return &existing, nil
+		}
+		return nil, model.AlreadyExistsError("additional claim already exists")
+	}
+
 	row := &model.EntityConfigurationAdditionalClaim{
 		Claim: item.Claim,
 		Value: item.Value,
