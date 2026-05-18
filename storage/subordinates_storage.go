@@ -24,9 +24,56 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 			var existing model.ExtendedSubordinateInfo
 			result := tx.Unscoped().Where("entity_id = ?", info.EntityID).First(&existing)
 			if result.Error == nil {
-				// Record exists - return conflict
+				// Record exists
+				if existing.DeletedAt.Valid {
+					// Soft-deleted: reactivate it (behave as fresh creation)
+					existing.DeletedAt = gorm.DeletedAt{}
+					existing.Status = info.Status
+					existing.Description = info.Description
+
+					// Handle JWKS: delete old one if exists, create new if provided
+					if existing.JWKSID != 0 {
+						if err := tx.Unscoped().Delete(&model.JWKS{}, existing.JWKSID).Error; err != nil {
+							return errors.Wrap(err, "failed to delete old JWKS")
+						}
+					}
+					if info.JWKS.ID != 0 || (info.JWKS.Keys.Set != nil && info.JWKS.Keys.Len() > 0) {
+						if err := tx.Create(&info.JWKS).Error; err != nil {
+							return errors.Wrap(err, "failed to create new JWKS")
+						}
+						existing.JWKSID = info.JWKS.ID
+					} else {
+						existing.JWKSID = 0
+					}
+
+					// Save reactivated subordinate
+					if err := tx.Save(&existing).Error; err != nil {
+						return errors.Wrap(err, "failed to reactivate subordinate")
+					}
+
+					// Delete old entity types and insert new ones
+					if err := tx.Where("subordinate_id = ?", existing.ID).Delete(&model.SubordinateEntityType{}).Error; err != nil {
+						return errors.Wrap(err, "failed to delete old entity types")
+					}
+
+					if len(info.SubordinateEntityTypes) > 0 {
+						for i := range info.SubordinateEntityTypes {
+							info.SubordinateEntityTypes[i].SubordinateID = existing.ID
+						}
+						if err := tx.Create(&info.SubordinateEntityTypes).Error; err != nil {
+							return errors.Wrap(err, "failed to insert entity types")
+						}
+					}
+
+					// Copy back the ID for the caller
+					info.ID = existing.ID
+					return nil
+				}
+				// Active record exists - return conflict
 				return model.AlreadyExistsErrorFmt("subordinate with entity_id %s already exists", info.EntityID)
 			}
+
+			// No record exists - proceed with normal create
 
 			// Save entity types separately to handle them with their own ON CONFLICT clause
 			entityTypes := info.SubordinateEntityTypes
