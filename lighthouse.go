@@ -165,6 +165,7 @@ func NewLightHouse(
 		return nil, err
 	}
 	entity.adminAPIServer = adminAPIServer
+	entity.serverConf.AdminAPIPort = admin.Port
 
 	return entity, nil
 }
