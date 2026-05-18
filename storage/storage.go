@@ -823,6 +823,22 @@ func (s *TrustMarkIssuersStorage) Create(req model.AddTrustMarkIssuer) (*model.T
 	if req.Issuer == "" {
 		return nil, model.AlreadyExistsError("issuer is required")
 	}
+
+	var existing model.TrustMarkIssuer
+	result := s.db.Unscoped().Where("issuer = ?", req.Issuer).First(&existing)
+	if result.Error == nil {
+		if existing.DeletedAt.Valid {
+			existing.DeletedAt = gorm.DeletedAt{}
+			existing.Issuer = req.Issuer
+			existing.Description = req.Description
+			if err := s.db.Save(&existing).Error; err != nil {
+				return nil, errors.Wrap(err, "trust_mark_issuers: reactivation failed")
+			}
+			return &existing, nil
+		}
+		return nil, model.AlreadyExistsError("trust mark issuer already exists")
+	}
+
 	item := &model.TrustMarkIssuer{
 		Issuer:      req.Issuer,
 		Description: req.Description,
