@@ -111,6 +111,10 @@ func (h *subordinatesBaseHandlers) create(c *fiber.Ctx) error {
 		)
 	})
 	if err != nil {
+		var alreadyExists model.AlreadyExistsError
+		if errors.As(err, &alreadyExists) {
+			return writeConflict(c, err.Error())
+		}
 		return writeServerError(c, err)
 	}
 	return c.Status(fiber.StatusCreated).JSON(stored)

@@ -20,18 +20,20 @@ type SubordinateStorage struct {
 func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 	return s.db.Transaction(
 		func(tx *gorm.DB) error {
+			// Check if subordinate already exists (including soft-deleted)
+			var existing model.ExtendedSubordinateInfo
+			result := tx.Unscoped().Where("entity_id = ?", info.EntityID).First(&existing)
+			if result.Error == nil {
+				// Record exists - return conflict
+				return model.AlreadyExistsErrorFmt("subordinate with entity_id %s already exists", info.EntityID)
+			}
+
 			// Save entity types separately to handle them with their own ON CONFLICT clause
 			entityTypes := info.SubordinateEntityTypes
 			info.SubordinateEntityTypes = nil // Prevent GORM from auto-creating associations
 
-			// Save the subordinate info (without associations)
-			if err := tx.Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "entity_id"}},
-				DoUpdates: clause.AssignmentColumns([]string{
-					"updated_at", "description", "status", "jwks_id",
-					"metadata", "metadata_policy", "constraints",
-				}),
-			}).Create(&info).Error; err != nil {
+			// Create the subordinate info (without associations)
+			if err := tx.Create(&info).Error; err != nil {
 				return err
 			}
 
@@ -40,11 +42,7 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 				for i := range entityTypes {
 					entityTypes[i].SubordinateID = info.ID
 				}
-				// Use column-based conflict detection with DO NOTHING
-				if err := tx.Clauses(clause.OnConflict{
-					Columns:   []clause.Column{{Name: "subordinate_id"}, {Name: "entity_type"}},
-					DoNothing: true,
-				}).Create(&entityTypes).Error; err != nil {
+				if err := tx.Create(&entityTypes).Error; err != nil {
 					return errors.Wrap(err, "failed to insert subordinate entity types")
 				}
 			}
