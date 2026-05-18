@@ -993,6 +993,28 @@ func (s *TrustMarkSpecStorage) List() ([]model.TrustMarkSpec, error) {
 
 // Create creates a new TrustMarkSpec
 func (s *TrustMarkSpecStorage) Create(spec *model.AddTrustMarkSpec) (*model.TrustMarkSpec, error) {
+	var existing model.TrustMarkSpec
+	result := s.db.Unscoped().Where("trust_mark_type = ?", spec.TrustMarkType).First(&existing)
+	if result.Error == nil {
+		if existing.DeletedAt.Valid {
+			existing.DeletedAt = gorm.DeletedAt{}
+			existing.TrustMarkType = spec.TrustMarkType
+			existing.Lifetime = spec.Lifetime
+			existing.Ref = spec.Ref
+			existing.LogoURI = spec.LogoURI
+			existing.DelegationJWT = spec.DelegationJWT
+			existing.AdditionalClaims = spec.AdditionalClaims
+			existing.Description = spec.Description
+			existing.EligibilityConfig = spec.EligibilityConfig
+			existing.CacheTTL = spec.CacheTTL
+			if err := s.db.Save(&existing).Error; err != nil {
+				return nil, errors.Wrap(err, "trust_mark_specs: reactivation failed")
+			}
+			return &existing, nil
+		}
+		return nil, model.AlreadyExistsError("trust mark spec already exists for this type")
+	}
+
 	record := &model.TrustMarkSpec{
 		TrustMarkType:     spec.TrustMarkType,
 		Lifetime:          spec.Lifetime,
