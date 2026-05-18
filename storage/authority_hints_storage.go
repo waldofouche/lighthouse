@@ -25,12 +25,26 @@ func (s *AuthorityHintsStorage) List() ([]model.AuthorityHint, error) {
 }
 
 func (s *AuthorityHintsStorage) Create(hint model.AddAuthorityHint) (*model.AuthorityHint, error) {
+	var existing model.AuthorityHint
+	result := s.db.Unscoped().Where("entity_id = ?", hint.EntityID).First(&existing)
+	if result.Error == nil {
+		if existing.DeletedAt.Valid {
+			existing.DeletedAt = gorm.DeletedAt{}
+			existing.EntityID = hint.EntityID
+			existing.Description = hint.Description
+			if err := s.db.Save(&existing).Error; err != nil {
+				return nil, errors.Wrap(err, "authority_hints: reactivation failed")
+			}
+			return &existing, nil
+		}
+		return nil, model.AlreadyExistsError("authority hint already exists")
+	}
+
 	item := &model.AuthorityHint{
 		EntityID:    hint.EntityID,
 		Description: hint.Description,
 	}
 	if err := s.db.Create(item).Error; err != nil {
-		// Check unique/constraint violations
 		if isUniqueConstraintError(err) {
 			return nil, model.AlreadyExistsError("authority hint already exists")
 		}
