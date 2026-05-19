@@ -283,14 +283,14 @@ federation entity using the Admin API.
 ### 1. Create an Admin User
 
 ```bash
-# Via the CLI inside the container
-docker compose exec lighthouse lighthouse passwd
-
-# Or via API (basic auth disabled initially if no users exist)
+# Via API (basic auth disabled initially if no users exist)
 curl -X POST https://lighthouse.example.com/api/v1/admin/users \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "your-secure-password"}'
 ```
+
+!!! note "Authentication Behavior"
+    When no users exist, the Admin API does not require authentication. This allows you to create the first admin user. Once at least one user exists, all API requests require HTTP Basic Authentication.
 
 ### 2. Configure Federation Metadata
 

@@ -87,6 +87,12 @@ Manage admin users for API access. This functionality is available at a separate
 - **User CRUD** - Create, read, update, and delete admin users
 - **Password Management** - Set and update user passwords
 
+!!! info "Authentication Behavior"
+    The whole Admin API has the following authentication behavior for initial setup:
+    
+    - **No users exist**: The API does not require authentication, allowing you to create the first admin user
+    - **At least one user exists**: All API requests require HTTP Basic Authentication with valid credentials
+    
 ## Security Considerations
 
 !!! warning "Production Deployments"
