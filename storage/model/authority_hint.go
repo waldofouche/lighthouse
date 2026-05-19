@@ -10,7 +10,7 @@ type AuthorityHint struct {
 	CreatedAt   int            `json:"created_at"`
 	UpdatedAt   int            `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
-	EntityID    string         `gorm:"uniqueIndex" json:"entity_id"`
+	EntityID    string         `gorm:"size:255;uniqueIndex" json:"entity_id"`
 	Description string         `gorm:"type:text" json:"description,omitempty"`
 }
 

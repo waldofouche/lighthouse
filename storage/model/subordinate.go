@@ -25,7 +25,7 @@ type BasicSubordinateInfo struct {
 	CreatedAt              int                     `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt              int                     `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt              gorm.DeletedAt          `gorm:"index" json:"-"`
-	EntityID               string                  `gorm:"uniqueIndex" json:"entity_id"`
+	EntityID               string                  `gorm:"size:255;uniqueIndex" json:"entity_id"`
 	Description            string                  `gorm:"type:text" json:"description,omitempty"`
 	SubordinateEntityTypes []SubordinateEntityType `gorm:"foreignKey:SubordinateID;constraint:OnDelete:CASCADE" json:"registered_entity_types,omitempty"`
 	Status                 Status                  `gorm:"index" json:"status"`
@@ -37,12 +37,12 @@ func (ExtendedSubordinateInfo) TableName() string { return "subordinates" }
 // It transforms additional_claims from an array of objects to a simple {"claim": "value"} object.
 func (e ExtendedSubordinateInfo) MarshalJSON() ([]byte, error) {
 	type Alias ExtendedSubordinateInfo
-	
+
 	additionalClaimsMap := make(map[string]any, len(e.SubordinateAdditionalClaims))
 	for _, claim := range e.SubordinateAdditionalClaims {
 		additionalClaimsMap[claim.Claim] = claim.Value
 	}
-	
+
 	return json.Marshal(&struct {
 		AdditionalClaims map[string]any `json:"additional_claims,omitempty"`
 		*Alias

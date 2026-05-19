@@ -13,7 +13,7 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 
 	// Username is unique identifier for login
-	Username string `gorm:"uniqueIndex" json:"username"`
+	Username string `gorm:"size:255;uniqueIndex" json:"username"`
 	// PasswordHash stores a PHC-formatted argon2id hash of the user's password
 	PasswordHash string `json:"-"`
 	// DisplayName is optional, for UI friendliness
