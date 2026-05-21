@@ -43,7 +43,7 @@ func rootRunE(_ *cobra.Command, _ []string) error {
 }
 
 func main() {
-	rootCmd.Flags().StringVarP(&configFile, "config", "c", "config.yaml", "the config file to use")
+	rootCmd.Flags().StringVarP(&configFile, "config", "c", "", "the config file to use (optional; if not specified, uses environment variables)")
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
 	}

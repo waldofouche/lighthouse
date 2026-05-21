@@ -152,12 +152,11 @@ func Load(filename string) error {
 		}
 	} else {
 		content, _ = fileutils.ReadFileFromLocations("config.yaml", possibleConfigLocations)
-		if content == nil {
-			return errors.Errorf("could not find config file in any of the possible locations")
-		}
 	}
-	if err := yaml.Unmarshal(content, &c); err != nil {
-		return err
+	if content != nil {
+		if err := yaml.Unmarshal(content, &c); err != nil {
+			return err
+		}
 	}
 
 	// Override with environment variables
