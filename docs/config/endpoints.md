@@ -7,6 +7,13 @@ The `endpoints` config option is used to enable and configure the various endpoi
 enabling endpoints LightHouse functionality is extended, i.e. LightHouse can serve different roles depending on the 
 enabled endpoints.
 
+!!! note "Environment Variables"
+    All endpoint options support environment variables with the `LH_ENDPOINTS_` prefix.
+    For example: `LH_ENDPOINTS_FETCH_PATH`, `LH_ENDPOINTS_RESOLVE_GRACE_PERIOD`.
+    
+    **YAML-Only Options**: `endpoints.enroll.checker` and `endpoints.trust_mark.trust_mark_specs` 
+    are too complex for environment variables and can only be set via YAML.
+
 ## `fetch`
 Under the `fetch` option the Federation Subordinate Fetching Endpoint is configured.
 
@@ -24,6 +31,7 @@ This endpoint is required if LightHouse serves as a Trust Anchor and / or Interm
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_FETCH_PATH`</span>
 
 The `path` option is used to set the url path under which the Fetch Endpoint is available. Unless `url` is not set 
 the full external url will be `<entity_id><path>`.
@@ -35,6 +43,7 @@ deployment scenario makes sense.
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_FETCH_URL`</span>
 
 The `url` option is used to set the external url of the Fetch Endpoint that is published in the Federation Metadata 
 in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -44,11 +53,21 @@ in the Entity Configuration. This option is usually not set. There are two cases
 
 ### `statement_lifetime`
 <span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
-<span class="badge badge-blue" title="Default Value">600000 seconds</span>
-<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-blue" title="Default Value">600000 seconds (~1 week)</span>
+<span class="badge badge-yellow" title="Deprecation status">deprecated</span>
 
-The `statement_lifetime` option sets the lifetime of the issued Entity Statements.
-The default is a bit less than one week.
+The `statement_lifetime` option sets the lifetime of the issued Entity Statements (Subordinate Statements).
+
+!!! warning "Deprecated - Database-managed"
+    
+    This config file option is **deprecated** and ignored at runtime. The subordinate 
+    statement lifetime is now managed in the database.
+    
+    - Use `lhmigrate config2db --only=statement_lifetime` to migrate this value from 
+      your config file to the database.
+    - Use the Admin API at `GET/PUT /admin/api/v1/subordinates/lifetime` to view or 
+      change the value.
+    - If not set in the database, the default of 600000 seconds (~1 week) is used.
 
 ## `list`
 Under the `list` option the Federation Subordinate Listing Endpoint is configured.
@@ -66,6 +85,7 @@ This endpoint is required if LightHouse serves as a Trust Anchor and / or Interm
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_LIST_PATH`</span>
 
 The `path` option is used to set the url path under which the Listing Endpoint is available. Unless `url` is not set
 the full external url will be `<entity_id><path>`.
@@ -77,6 +97,7 @@ deployment scenario makes sense.
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_LIST_URL`</span>
 
 The `url` option is used to set the external url of the Listing Endpoint that is published in the Federation Metadata
 in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -102,6 +123,7 @@ This endpoint is generally optional. However, if LightHouse should serve as a Re
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_PATH`</span>
 
 The `path` option is used to set the url path under which the Resolve Endpoint is available. Unless `url` is not set
 the full external url will be `<entity_id><path>`.
@@ -112,6 +134,7 @@ Federation Metadata in the Entity Configuration set `url`.
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_URL`</span>
 
 The `url` option is used to set the external url of the Resolve Endpoint that is published in the Federation Metadata
 in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -123,6 +146,7 @@ in the Entity Configuration. This option is usually not set. There are two cases
 <span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
 <span class="badge badge-blue" title="Default Value">1 hour</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_GRACE_PERIOD`</span>
 
 The `grace_period` option sets a Grace Period for the Resolver Cache.
 If a cached statement used by the resolver is not yet expired (on a request that needs it), but it will expire 
@@ -133,6 +157,7 @@ also the `time_elapsed_grace_factor` option). The grace period is given in secon
 <span class="badge badge-purple" title="Value Type">float</span>
 <span class="badge badge-blue" title="Default Value">0.5</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_TIME_ELAPSED_GRACE_FACTOR`</span>
 
 The `time_elapsed_grace_factor` option is used to further tweak the grace period behavior.
 A cached statement that expires within the grace period will only be refreshed if a certain amount of its lifetime 
@@ -146,6 +171,116 @@ already has elapsed. How much time needs to already have elapsed is defined by t
 
     With a `time_elapsed_grace_factor=0.75` LightHouse would only trigger a refresh if also 75% of the lifetime 
     (45mins in this case) have been passed.
+
+### `allowed_trust_anchors`
+<span class="badge badge-purple" title="Value Type">list of strings</span>
+<span class="badge badge-green" title="If this option is required or optional">optional; required if `proactive_resolver.enabled`</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_ALLOWED_TRUST_ANCHORS`</span>
+
+Defines which Trust Anchors are permitted on the resolver.
+
+When `proactive_resolver.enabled` is set, at least one `allowed_trust_anchors` entry must be configured (unless
+[`use_entity_collection_allowed_trust_anchors`](#use_entity_collection_allowed_trust_anchors) is `true`). Each value
+should be the Entity ID of a Trust Anchor.
+
+### `use_entity_collection_allowed_trust_anchors`
+<span class="badge badge-purple" title="Value Type">boolean</span>
+<span class="badge badge-blue" title="Default Value">`false`</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_USE_ENTITY_COLLECTION_ALLOWED_TRUST_ANCHORS`</span>
+
+If set to `true`, the resolver reuses the Trust Anchors configured under [`entity_collection.allowed_trust_anchors`](#entity_collection).
+This is useful when the same set of Trust Anchors is used for both periodic entity collection and proactive resolver refreshes.
+
+If `true`, you do not need to configure `resolve.allowed_trust_anchors` separately.
+
+### `proactive_resolver`
+<span class="badge badge-purple" title="Value Type">object / mapping</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+
+Enables and configures a background resolver that proactively refreshes cached statements used for resolution.
+
+If enabled, the following requirements apply:
+
+- [`entity_collection`](#entity_collection) must be enabled and `interval` must be set.
+- Either [`use_entity_collection_allowed_trust_anchors`](#use_entity_collection_allowed_trust_anchors) is `true`, or
+  [`allowed_trust_anchors`](#allowed_trust_anchors) must list at least one Trust Anchor.
+- [`response_storage.dir`](#dir) must be set, and at least one of [`store_json`](#store_json) or [`store_jwt`](#store_jwt) must be `true`.
+
+??? file "config.yaml"
+
+    ```yaml
+    endpoints:
+      entity_collection:
+        path: /entity-collection
+        allowed_trust_anchors:
+          - https://ta.example.com
+        interval: 8h
+      resolve:
+        path: /resolve
+        grace_period: 1h
+        use_entity_collection_allowed_trust_anchors: true
+        proactive_resolver:
+          enabled: true
+          concurrency_limit: 32
+          queue_size: 10000
+          response_storage:
+            dir: /var/lib/lighthouse/resolver
+            store_jwt: true
+    ```
+
+#### `enabled`
+<span class="badge badge-purple" title="Value Type">boolean</span>
+<span class="badge badge-blue" title="Default Value">`false`</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_PROACTIVE_RESOLVER_ENABLED`</span>
+
+Turns on the proactive resolver.
+
+#### `concurrency_limit`
+<span class="badge badge-purple" title="Value Type">integer</span>
+<span class="badge badge-blue" title="Default Value">64</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_PROACTIVE_RESOLVER_CONCURRENCY_LIMIT`</span>
+
+Limits how many proactive refresh tasks may run in parallel.
+
+#### `queue_size`
+<span class="badge badge-purple" title="Value Type">integer</span>
+<span class="badge badge-blue" title="Default Value">10000</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_PROACTIVE_RESOLVER_QUEUE_SIZE`</span>
+
+Maximum size of the internal queue holding pending refresh jobs.
+
+#### `response_storage`
+<span class="badge badge-purple" title="Value Type">object / mapping</span>
+<span class="badge badge-green" title="If this option is required or optional">required, if `proactive_resolver.enabled`</span>
+
+Configures how responses from the proactive resolver are persisted.
+
+##### `dir`
+<span class="badge badge-purple" title="Value Type">directory path</span>
+<span class="badge badge-green" title="If this option is required or optional">required, if `proactive_resolver.enabled`</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_PROACTIVE_RESOLVER_RESPONSE_STORAGE_DIR`</span>
+
+Directory where the resolver stores responses. Must be set when the proactive resolver is enabled.
+
+##### `store_json`
+<span class="badge badge-purple" title="Value Type">boolean</span>
+<span class="badge badge-blue" title="Default Value">`false`</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_PROACTIVE_RESOLVER_RESPONSE_STORAGE_STORE_JSON`</span>
+
+Whether to store responses as parsed JSON.
+
+##### `store_jwt`
+<span class="badge badge-purple" title="Value Type">boolean</span>
+<span class="badge badge-blue" title="Default Value">`true`</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_RESOLVE_PROACTIVE_RESOLVER_RESPONSE_STORAGE_STORE_JWT`</span>
+
+Whether to store responses as pre-signed JWTs.
 
 ## `trust_mark`
 Under the `trust_mark` option the Federation Trust Mark Endpoint is configured.
@@ -177,6 +312,7 @@ This endpoint is required if LightHouse serves as a Trust Mark Issuer.
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_TRUST_MARK_PATH`</span>
 
 The `path` option is used to set the url path under which the Trust Mark Endpoint is available. Unless `url` is not set
 the full external url will be `<entity_id><path>`.
@@ -187,6 +323,7 @@ Federation Metadata in the Entity Configuration set `url`.
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_TRUST_MARK_URL`</span>
 
 The `url` option is used to set the external url of the Trust Mark Endpoint that is published in the Federation Metadata
 in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -196,40 +333,49 @@ in the Entity Configuration. This option is usually not set. There are two cases
 
 ### `trust_mark_specs`
 <span class="badge badge-purple" title="Value Type">list</span>
-<span class="badge badge-red" title="If this option is required or optional">required, if trust marks should be issued</span>
+<span class="badge badge-yellow" title="Deprecation status">deprecated</span>
 
-The `trust_mark_specs` option is used to configure which Trust Marks can be issued.
-Each list element has the following configuration options defined:
+!!! warning "Deprecated"
+    The `trust_mark_specs` configuration option is **deprecated** and will be ignored.
+    Trust Mark specifications should now be managed via the Admin API.
+    
+    Use the following Admin API endpoints to manage trust mark specs:
+    
+    - `POST /admin/api/v1/trustmark-specs` - Create a new trust mark spec
+    - `GET /admin/api/v1/trustmark-specs` - List all trust mark specs
+    - `GET /admin/api/v1/trustmark-specs/{id}` - Get a specific trust mark spec
+    - `PUT /admin/api/v1/trustmark-specs/{id}` - Update a trust mark spec
+    - `DELETE /admin/api/v1/trustmark-specs/{id}` - Delete a trust mark spec
+    
+    See [Trust Marks](../features/trustmarks.md) for more details on managing trust marks.
+
+The `trust_mark_specs` option was previously used to configure which Trust Marks can be issued.
+Each list element had the following configuration options defined:
 
 #### `trust_mark_type`
 <span class="badge badge-purple" title="Value Type">string</span>
-<span class="badge badge-red" title="If this option is required or optional">required</span>
 
 The `trust_mark_type` option sets the Trust Mark Type (ID) of the Trust Mark.
 
 #### `lifetime`
 <span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
-<span class="badge badge-orange" title="If this option is required or optional">required, if the Trust Mark should expire</span>
 
 The `lifetime` option is used to set the lifetime of each Trust Mark JWT.
 
 #### `ref`
 <span class="badge badge-purple" title="Value Type">uri</span>
-<span class="badge badge-green" title="If this option is required or optional">optional</span>
 
 The `ref` option is used to set the ref uri inside the Trust Mark JWT, as defined in the OpenID Federation 
 Specification.
 
 #### `logo_uri`
 <span class="badge badge-purple" title="Value Type">uri</span>
-<span class="badge badge-green" title="If this option is required or optional">optional</span>
 
 The `logo_uri` option is used to set the logo uri inside the Trust Mark JWT, as defined in the OpenID Federation
 Specification.
 
 #### `delegation_jwt`
 <span class="badge badge-purple" title="Value Type">string</span>
-<span class="badge badge-orange" title="If this option is required or optional">required, if delegation is used</span>
 
 The `delegation_jwt` option is used to set the delegation JWT inside the Trust Mark JWT, as defined in the OpenID 
 Federation Specification. The delegation JWT is required if this LightHouse instance is not the Trust Mark Owner, 
@@ -240,12 +386,10 @@ Additional claims can be provided. Any provided claim that is not defined here w
 
 #### `checker`
 <span class="badge badge-purple" title="Value Type">object / mapping</span>
-<span class="badge badge-green" title="If this option is required or optional">optional</span>
 
-The `checker` option is used to configure [Entity Checks](../features/entity_checks.md) that can be used to 
-dynamically issue Trust Marks to Entities. Check the [Entity Checks](../features/entity_checks.md) documentation on 
-the configuration format. Also see [Trust Marks](../features/trustmarks.md) for some more details on how Trust Mark 
-issuance works with LightHouse.
+The `checker` option was used to configure [Entity Checks](../features/entity_checks.md) that can be used to 
+dynamically issue Trust Marks to Entities. This is now configured via the `eligibility_config` field when creating
+trust mark specs via the Admin API.
 
 ## `trust_mark_request`
 Under the `trust_mark_request` option a custom / proprietary endpoint can be configured. This endpoint allows an 
@@ -282,6 +426,7 @@ This endpoint is optional and only applicable if LightHouse serves as a Trust Ma
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_TRUST_MARK_REQUEST_PATH`</span>
 
 The `path` option is used to set the url path under which the Trust Mark Request Endpoint is available. Unless `url` is 
 not set the full external url will be `<entity_id><path>`.
@@ -292,6 +437,7 @@ Request Endpoint in the Federation Metadata in the Entity Configuration set `url
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_TRUST_MARK_REQUEST_URL`</span>
 
 The `url` option is used to set the external url of the Trust Mark Request Endpoint that is published in the Federation 
 Metadata in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -304,11 +450,6 @@ Under the `trust_mark_status` option the Federation Trust Mark Status Endpoint i
 
 This endpoint is optional and only applicable if LightHouse serves as a Trust Mark Issuer.
 
-!!! warning ":fontawesome-solid-person-digging: NYI"
-
-    The current implementation of the Trust Mark Status Endpoint is not yet updated to draft 43 - and therefore 
-    works complelty differently.
-
 ??? file "config.yaml"
 
     ```yaml
@@ -320,6 +461,7 @@ This endpoint is optional and only applicable if LightHouse serves as a Trust Ma
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_TRUST_MARK_STATUS_PATH`</span>
 
 The `path` option is used to set the url path under which the Trust Mark Status Endpoint is available. Unless `url` is
 not set the full external url will be `<entity_id><path>`.
@@ -330,6 +472,7 @@ Status Endpoint in the Federation Metadata in the Entity Configuration set `url`
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_TRUST_MARK_STATUS_URL`</span>
 
 The `url` option is used to set the external url of the Trust Mark Status Endpoint that is published in the Federation
 Metadata in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -353,6 +496,7 @@ This endpoint is optional and only applicable if LightHouse serves as a Trust Ma
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_TRUST_MARK_LIST_PATH`</span>
 
 The `path` option is used to set the url path under which the Trust Marked Entities Listing Endpoint is available. 
 Unless `url` is not set the full external url will be `<entity_id><path>`.
@@ -363,6 +507,7 @@ Trust Marked Entities Listing Endpoint in the Federation Metadata in the Entity 
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_TRUST_MARK_LIST_URL`</span>
 
 The `url` option is used to set the external url of the Trust Marked Entities Listing Endpoint that is published in the 
 Federation Metadata in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -386,6 +531,7 @@ This endpoint is optional.
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_HISTORICAL_KEYS_PATH`</span>
 
 The `path` option is used to set the url path under which the Historical Keys Endpoint is available. Unless `url` is 
 not set the full external url will be `<entity_id><path>`.
@@ -396,6 +542,7 @@ Endpoint in the Federation Metadata in the Entity Configuration set `url`.
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_HISTORICAL_KEYS_URL`</span>
 
 The `url` option is used to set the external url of the Historical Keys Endpoint that is published in the Federation 
 Metadata in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -429,6 +576,7 @@ This endpoint is optional and only applicable if LightHouse serves as a Trust An
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENROLL_PATH`</span>
 
 The `path` option is used to set the url path under which the Enroll Endpoint is available. Unless `url` is not set
 the full external url will be `<entity_id><path>`.
@@ -439,6 +587,7 @@ Federation Metadata in the Entity Configuration set `url`.
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENROLL_URL`</span>
 
 The `url` option is used to set the external url of the Enroll Endpoint that is published in the Federation Metadata
 in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -491,6 +640,7 @@ This endpoint is optional and only applicable if LightHouse serves as a Trust An
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENROLL_REQUEST_PATH`</span>
 
 The `path` option is used to set the url path under which the Enroll Request Endpoint is available. Unless `url` is
 not set the full external url will be `<entity_id><path>`.
@@ -501,6 +651,7 @@ Request Endpoint in the Federation Metadata in the Entity Configuration set `url
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENROLL_REQUEST_URL`</span>
 
 The `url` option is used to set the external url of the Enroll Request Endpoint that is published in the Federation
 Metadata in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
@@ -509,8 +660,8 @@ Metadata in the Entity Configuration. This option is usually not set. There are 
 - To use an external Endpoint.
 
 ## `entity_collection`
-Under the `entity_colleection` option the Federation Entity Collection Endpoint is configured. This is a 
-work-in-process extension draft, currently available at: https://zachmann.github.io/openid-federation-entity-collection/main.html
+Under the `entity_collection` option the Federation Entity Collection Endpoint is configured. This endpoint follows a 
+work-in-progress extension draft, currently available at: https://zachmann.github.io/openid-federation-entity-collection/main.html
 
 This endpoint is optional.
 
@@ -518,26 +669,79 @@ This endpoint is optional.
 
     ```yaml
     endpoints:
-        list:
-            path: /list
+        entity_collection:
+            path: /entity-collection
+            allowed_trust_anchors:
+              - https://ta.example.com
+              - https://ta2.example.com
+            interval: 8h
+            concurrency_limit: 4
+            pagination_limit: 512
     ```
 
 ### `path`
 <span class="badge badge-purple" title="Value Type">string</span>
 <span class="badge badge-red" title="If this option is required or optional">required, unless `url` is given</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENTITY_COLLECTION_PATH`</span>
 
 The `path` option is used to set the url path under which the Entity Collection Endpoint is available. Unless `url` is 
 not set the full external url will be `<entity_id><path>`.
 
-If `path` is not set, LightHouse will not provide a Entity Collection Endpoint. To include an external Entity 
+If `path` is not set, LightHouse will not provide an Entity Collection Endpoint. To include an external Entity 
 Collection Endpoint in the Federation Metadata in the Entity Configuration set `url`.
 
 ### `url`
 <span class="badge badge-purple" title="Value Type">uri</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENTITY_COLLECTION_URL`</span>
 
 The `url` option is used to set the external url of the Entity Collection Endpoint that is published in the Federation 
 Metadata in the Entity Configuration. This option is usually not set. There are two cases where it might be set:
 
 - To overwrite the default constructing of the external url from the provided `path`. This should usually not be needed.
 - To use an external Endpoint.
+
+### `allowed_trust_anchors`
+<span class="badge badge-purple" title="Value Type">list of strings</span>
+<span class="badge badge-orange" title="If this option is required or optional">required, if `interval` is set; otherwise optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENTITY_COLLECTION_ALLOWED_TRUST_ANCHORS`</span>
+
+The `allowed_trust_anchors` option restricts which Trust Anchors can be used in requests against the Entity Collection 
+Endpoint. If provided, a request's `trust_anchor` parameter must match one of the configured entries; otherwise the 
+endpoint responds with an error.
+
+If `interval` is configured (see below), at least one `allowed_trust_anchors` entry must be provided to define which 
+Trust Anchors are periodically collected.
+
+### `interval`
+<span class="badge badge-purple" title="Value Type">[duration](index.md#time-duration-configuration-options)</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENTITY_COLLECTION_INTERVAL`</span>
+
+The `interval` option enables periodic collection of entities from the configured Trust Anchors. When set, LightHouse 
+starts a background collector that collects entities for each Trust Anchor every `interval`.
+
+If `interval` is not set (default), the endpoint serves collection requests on demand without running a background collector.
+
+### `concurrency_limit`
+<span class="badge badge-purple" title="Value Type">integer</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENTITY_COLLECTION_CONCURRENCY_LIMIT`</span>
+
+The `concurrency_limit` option controls how many periodic collection tasks can run in parallel when `interval` is set. 
+If `interval` is not set, providing `concurrency_limit` has no effect and will be ignored (a warning is logged).
+
+### `pagination_limit`
+<span class="badge badge-purple" title="Value Type">integer</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_ENDPOINTS_ENTITY_COLLECTION_PAGINATION_LIMIT`</span>
+
+Enables pagination support for the Entity Collection Endpoint. When set to a positive integer, clients can use the
+`limit` and `from_entity_id` request parameters to page through results ordered by `entity_id`.
+
+
+The server enforces a maximum page size equal to the configured `pagination_limit`. When pagination is disabled
+(`pagination_limit` not set or `<= 0`), requests including `limit` or `from_entity_id` are rejected with
+`unsupported_parameter` errors.
+
+Pagination can be enabled independently of `interval`; it applies to both on-demand collection and periodic collection.
