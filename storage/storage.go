@@ -58,6 +58,48 @@ func NewStorage(config Config) (*Storage, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// For MySQL, ensure TEXT/BLOB columns used in indexes have a length
+	// MySQL (including 8+) errors with: "BLOB/TEXT column '...' used in key specification without a key length"
+	// Run a small set of ALTER TABLE .. MODIFY COLUMN statements prior to AutoMigrate to convert
+	// those columns to VARCHAR(255). This mirrors MIGRATION_mysql_text_index_fix.sql and is
+	// intentionally conservative: errors are logged but won't abort startup so long as AutoMigrate
+	// can proceed (some environments may already have the correct types).
+	if config.Driver == DriverMySQL {
+		mysqlFixes := []string{
+			// subordinates
+			"ALTER TABLE subordinates MODIFY COLUMN entity_id VARCHAR(255)",
+			// trust_mark_types
+			"ALTER TABLE trust_mark_types MODIFY COLUMN trust_mark_type VARCHAR(255)",
+			// trust_mark_owners
+			"ALTER TABLE trust_mark_owners MODIFY COLUMN entity_id VARCHAR(255)",
+			// trust_mark_issuers
+			"ALTER TABLE trust_mark_issuers MODIFY COLUMN issuer VARCHAR(255)",
+			// trust_mark_specs
+			"ALTER TABLE trust_mark_specs MODIFY COLUMN trust_mark_type VARCHAR(255)",
+			// trust_mark_subjects
+			"ALTER TABLE trust_mark_subjects MODIFY COLUMN entity_id VARCHAR(255)",
+			// issued_trust_mark_instances
+			"ALTER TABLE issued_trust_mark_instances MODIFY COLUMN trust_mark_type VARCHAR(255)",
+			"ALTER TABLE issued_trust_mark_instances MODIFY COLUMN subject VARCHAR(255)",
+			// subordinate_additional_claims
+			"ALTER TABLE subordinate_additional_claims MODIFY COLUMN claim VARCHAR(255)",
+			// entity_configuration_additional_claims
+			"ALTER TABLE entity_configuration_additional_claims MODIFY COLUMN claim VARCHAR(255)",
+			// authority_hints
+			"ALTER TABLE authority_hints MODIFY COLUMN entity_id VARCHAR(255)",
+			// users
+			"ALTER TABLE users MODIFY COLUMN username VARCHAR(255)",
+		}
+		for _, stmt := range mysqlFixes {
+			if err := db.Exec(stmt).Error; err != nil {
+				// Log at warn level: we don't want ALTER failures to prevent startup in all cases
+				// (the column may already be the correct type or the table may not exist yet).
+				log.WithError(err).WithField("stmt", stmt).Warn("mysql text-index fix statement failed")
+			} else {
+				log.WithField("stmt", stmt).Info("applied mysql text-index fix statement")
+			}
+		}
+	}
 	// Auto migrate the schemas
 	if err = db.AutoMigrate(models...); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)

@@ -13,6 +13,8 @@ import (
 	"github.com/go-oidfed/lib/jwx/keymanagement/kms"
 	"github.com/go-oidfed/lib/jwx/keymanagement/public"
 
+	"gorm.io/gorm"
+
 	"github.com/go-oidfed/lighthouse/storage"
 )
 
@@ -29,6 +31,33 @@ func usage() {
 	_, _ = fmt.Fprintf(os.Stderr, "  config    Migrate or update configuration to new format\n")
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	_, _ = fmt.Fprintf(os.Stderr, "Use 'lhmigrate <subcommand> -h' for help on a subcommand.\n")
+}
+
+// applyMySQLTextIndexFix runs conservative ALTER TABLE statements to convert
+// TEXT/BLOB columns used in indexes into VARCHAR(255) so AutoMigrate and
+// GORM migrations don't hit MySQL Error 1170.
+func applyMySQLTextIndexFix(db *gorm.DB) {
+	mysqlFixes := []string{
+		"ALTER TABLE subordinates MODIFY COLUMN entity_id VARCHAR(255)",
+		"ALTER TABLE trust_mark_types MODIFY COLUMN trust_mark_type VARCHAR(255)",
+		"ALTER TABLE trust_mark_owners MODIFY COLUMN entity_id VARCHAR(255)",
+		"ALTER TABLE trust_mark_issuers MODIFY COLUMN issuer VARCHAR(255)",
+		"ALTER TABLE trust_mark_specs MODIFY COLUMN trust_mark_type VARCHAR(255)",
+		"ALTER TABLE trust_mark_subjects MODIFY COLUMN entity_id VARCHAR(255)",
+		"ALTER TABLE issued_trust_mark_instances MODIFY COLUMN trust_mark_type VARCHAR(255)",
+		"ALTER TABLE issued_trust_mark_instances MODIFY COLUMN subject VARCHAR(255)",
+		"ALTER TABLE subordinate_additional_claims MODIFY COLUMN claim VARCHAR(255)",
+		"ALTER TABLE entity_configuration_additional_claims MODIFY COLUMN claim VARCHAR(255)",
+		"ALTER TABLE authority_hints MODIFY COLUMN entity_id VARCHAR(255)",
+		"ALTER TABLE users MODIFY COLUMN username VARCHAR(255)",
+	}
+	for _, stmt := range mysqlFixes {
+		if err := db.Exec(stmt).Error; err != nil {
+			log.WithError(err).WithField("stmt", stmt).Warn("mysql text-index fix statement failed")
+		} else {
+			log.WithField("stmt", stmt).Info("applied mysql text-index fix statement")
+		}
+	}
 }
 
 func publicCmd(args []string) int {
@@ -139,6 +168,10 @@ func publicCmd(args []string) int {
 		if err != nil {
 			log.WithError(err).Error("failed to connect to destination database")
 			return 1
+		}
+		// If MySQL, attempt to fix TEXT/BLOB columns used in indexes before AutoMigrate
+		if driver == storage.DriverMySQL {
+			applyMySQLTextIndexFix(db)
 		}
 		if _, err = storage.NewDBPublicKeyStorageFromStorage(db, typeID, legacy); err != nil {
 			log.WithError(err).Error("public key migration to DB failed")
@@ -345,6 +378,10 @@ func kmsCmd(args []string) int {
 		if dbErr != nil {
 			log.WithError(dbErr).Error("failed to connect to destination database for public key storage")
 			return 1
+		}
+		// If MySQL, attempt to fix TEXT/BLOB columns used in indexes before AutoMigrate
+		if dbDriver == storage.DriverMySQL {
+			applyMySQLTextIndexFix(db)
 		}
 		dstPKS, err = storage.NewDBPublicKeyStorageFromStorage(db, typeID, legacyPKS)
 		if err != nil {
