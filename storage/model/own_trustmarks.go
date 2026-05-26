@@ -12,7 +12,7 @@ type PublishedTrustMark struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Core fields
-	TrustMarkType   string `gorm:"uniqueIndex" json:"trust_mark_type"`
+	TrustMarkType   string `gorm:"size:255;uniqueIndex" json:"trust_mark_type"`
 	TrustMarkIssuer string `json:"trust_mark_issuer,omitempty"`
 	TrustMarkJWT    string `gorm:"type:text" json:"trust_mark,omitempty"`
 
