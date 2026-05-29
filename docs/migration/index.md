@@ -2,14 +2,14 @@
 icon: material/walk
 ---
 
-# Migration to LightHouse 0.20.0
+# Migration to LightHouse 0.20.X
 
 This page covers how to migrate to LightHouse >= 0.20.0.
 LightHouse 0.20.0 is a major release with significant changes, including 
 key management and storage backends.
 
 !!! danger "Breaking Changes"
-    You cannot directly upgrade from LightHouse <0.20.0 to 0.20.0.
+    You cannot directly upgrade from LightHouse <0.20.0 to 0.20.X.
 
     **You MUST migrate your deployment.**
 
@@ -65,7 +65,7 @@ This quickstart covers the complete migration workflow. Run these commands in or
       -v ./:/data \
       --network db-net
       --entrypoint /lhmigrate
-      oidfed/lighthouse:0.20.0 \
+      oidfed/lighthouse:0.20 \
       all \
       --config=/data/config.yaml \
       # ... other flags
