@@ -33,9 +33,11 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 
 					// Handle JWKS: delete old one if exists, create new if provided
 					if existing.JWKSID != nil {
+						// First permanently delete the soft-deleted JWKS using Unscoped
 						if err := tx.Unscoped().Delete(&model.JWKS{}, *existing.JWKSID).Error; err != nil {
 							return errors.Wrap(err, "failed to delete old JWKS")
 						}
+						existing.JWKSID = nil // Clear the reference before creating new JWKS
 					}
 					if info.JWKS.ID != 0 || (info.JWKS.Keys.Set != nil && info.JWKS.Keys.Len() > 0) {
 						if err := tx.Create(&info.JWKS).Error; err != nil {
@@ -100,12 +102,42 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 
 // Delete removes a subordinate
 func (s *SubordinateStorage) Delete(entityID string) error {
-	return s.db.Where("entity_id = ?", entityID).Delete(&model.ExtendedSubordinateInfo{}).Error
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var info model.ExtendedSubordinateInfo
+		if err := tx.Where("entity_id = ?", entityID).First(&info).Error; err != nil {
+			return err
+		}
+
+		// Soft-delete associated JWKS if exists
+		if info.JWKSID != nil {
+			if err := tx.Delete(&model.JWKS{}, *info.JWKSID).Error; err != nil {
+				return errors.Wrap(err, "failed to soft-delete JWKS")
+			}
+		}
+
+		// Soft-delete subordinate
+		return tx.Delete(&model.ExtendedSubordinateInfo{}, info.ID).Error
+	})
 }
 
 // DeleteByDBID removes a subordinate by primary key ID
 func (s *SubordinateStorage) DeleteByDBID(id string) error {
-	return s.db.Delete(&model.ExtendedSubordinateInfo{}, id).Error
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var info model.ExtendedSubordinateInfo
+		if err := tx.First(&info, id).Error; err != nil {
+			return err
+		}
+
+		// Soft-delete associated JWKS if exists
+		if info.JWKSID != nil {
+			if err := tx.Delete(&model.JWKS{}, *info.JWKSID).Error; err != nil {
+				return errors.Wrap(err, "failed to soft-delete JWKS")
+			}
+		}
+
+		// Soft-delete subordinate
+		return tx.Delete(&model.ExtendedSubordinateInfo{}, id).Error
+	})
 }
 
 // UpdateStatus updates the status of a subordinate by entityID

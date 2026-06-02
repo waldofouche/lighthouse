@@ -2,6 +2,7 @@ package adminapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,11 +10,27 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-oidfed/lib/jwx"
 	"github.com/gofiber/fiber/v2"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"gorm.io/gorm"
 
 	"github.com/go-oidfed/lighthouse/storage"
 	"github.com/go-oidfed/lighthouse/storage/model"
 )
+
+// createTestKey creates a generic RS256 JWK for testing
+func createTestKey(kid string) jwk.Key {
+	raw := fmt.Sprintf(
+		`{"kty":"RSA","kid":%q,"n":"0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw","e":"AQAB"}`,
+		kid,
+	)
+	k, err := jwk.ParseKey([]byte(raw))
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse test JWK: %v", err))
+	}
+	return k
+}
 
 // --- TEST HELPERS ---
 
@@ -33,9 +50,15 @@ func newSubordinateTestStorage(t *testing.T) *storage.Storage {
 	return store
 }
 
+// testBackends extends model.Backends with direct DB access for test assertions
+type testBackends struct {
+	model.Backends
+	db *gorm.DB
+}
+
 // setupSubordinateBaseApp creates a Fiber app and registers base subordinate endpoints.
 // Returns the app and the backend storage so tests can inject data.
-func setupSubordinateBaseApp(t *testing.T) (*fiber.App, model.Backends) {
+func setupSubordinateBaseApp(t *testing.T) (*fiber.App, testBackends) {
 	t.Helper()
 	store := newSubordinateTestStorage(t)
 
@@ -66,7 +89,10 @@ func setupSubordinateBaseApp(t *testing.T) (*fiber.App, model.Backends) {
 	// We pass nil for base handlers since they don't strictly use it.
 	registerSubordinatesBase(app, backends)
 
-	return app, backends
+	return app, testBackends{
+		Backends: backends,
+		db:       store.DB(),
+	}
 }
 
 // --- GET /subordinates TESTS ---
@@ -575,19 +601,24 @@ func TestDeleteSubordinateByID(t *testing.T) {
 			t.Parallel()
 			app, backends := setupSubordinateBaseApp(t)
 
-			// Create a mock record
+			set := jwk.NewSet()
+			set.AddKey(createTestKey("test-key"))
+
+			// Create a mock record with JWKS
 			backends.Subordinates.Add(
 				model.ExtendedSubordinateInfo{
 					BasicSubordinateInfo: model.BasicSubordinateInfo{
 						EntityID: "https://delete.example.org",
 						Status:   model.StatusActive,
 					},
+					JWKS: model.JWKS{Keys: jwx.JWKS{Set: set}},
 				},
 			)
 			saved, err := backends.Subordinates.Get("https://delete.example.org")
 			if err != nil {
 				t.Fatalf("Failed to get subordinate: %v", err)
 			}
+			originalJWKSID := saved.JWKSID
 
 			// Create a mock event for this subordinate
 			backends.SubordinateEvents.Add(
@@ -616,6 +647,18 @@ func TestDeleteSubordinateByID(t *testing.T) {
 			if err == nil && len(events) > 0 {
 				t.Errorf("Expected subordinate events to be deleted, but found %d events", len(events))
 			}
+
+			// Verify JWKS was soft-deleted
+			if originalJWKSID != nil {
+				var jwks model.JWKS
+				result := backends.db.Unscoped().First(&jwks, *originalJWKSID)
+				if result.Error != nil {
+					t.Fatalf("Failed to get JWKS: %v", result.Error)
+				}
+				if !jwks.DeletedAt.Valid {
+					t.Errorf("Expected JWKS to be soft-deleted, but DeletedAt is not set")
+				}
+			}
 		},
 	)
 
@@ -628,6 +671,103 @@ func TestDeleteSubordinateByID(t *testing.T) {
 			resp, bodyBytes := doRequest(t, app, req)
 
 			assertStatus(t, resp, bodyBytes, http.StatusNotFound)
+		},
+	)
+}
+
+// TestIssue85_ReRegisterAfterDelete tests the fix for GitHub issue #85
+// where re-registering a deleted subordinate fails with FK constraint error
+func TestIssue85_ReRegisterAfterDelete(t *testing.T) {
+	t.Parallel()
+	t.Run(
+		"Success", func(t *testing.T) {
+			t.Parallel()
+			app, backends := setupSubordinateBaseApp(t)
+
+			entityID := "https://re-register.example.org"
+
+			set := jwk.NewSet()
+			set.AddKey(createTestKey("original-key"))
+
+			// Step 1: Create initial subordinate with JWKS
+			backends.Subordinates.Add(
+				model.ExtendedSubordinateInfo{
+					BasicSubordinateInfo: model.BasicSubordinateInfo{
+						EntityID: entityID,
+						Status:   model.StatusActive,
+					},
+					JWKS: model.JWKS{Keys: jwx.JWKS{Set: set}},
+				},
+			)
+			saved, err := backends.Subordinates.Get(entityID)
+			if err != nil {
+				t.Fatalf("Failed to get subordinate: %v", err)
+			}
+			originalJWKSID := saved.JWKSID
+			if originalJWKSID == nil {
+				t.Fatal("Expected JWKS to be created")
+			}
+
+			// Step 2: Delete the subordinate (should soft-delete both subordinate and JWKS)
+			req := httptest.NewRequest("DELETE", fmt.Sprintf("/subordinates/%d", saved.ID), http.NoBody)
+			resp, bodyBytes := doRequest(t, app, req)
+			requireStatus(t, resp, bodyBytes, http.StatusNoContent)
+
+			// Verify subordinate is soft-deleted
+			deleted, err := backends.Subordinates.Get(entityID)
+			if err != nil {
+				t.Fatalf("Failed to query subordinate: %v", err)
+			}
+			if deleted != nil {
+				t.Errorf("Expected subordinate to be soft-deleted")
+			}
+
+			// Verify JWKS is soft-deleted
+			var jwks model.JWKS
+			result := backends.db.Unscoped().First(&jwks, *originalJWKSID)
+			if result.Error != nil {
+				t.Fatalf("Failed to get JWKS: %v", result.Error)
+			}
+			if !jwks.DeletedAt.Valid {
+				t.Errorf("Expected JWKS to be soft-deleted")
+			}
+
+			// Step 3: Re-register the same entity (this should succeed without FK errors)
+			createReq := httptest.NewRequest(
+				"POST", "/subordinates", strings.NewReader(
+					fmt.Sprintf(
+						`{"entity_id":"%s","registered_entity_types":["openid_provider"],"status":"pending"}`, entityID,
+					),
+				),
+			)
+			createReq.Header.Set("Content-Type", "application/json")
+			createResp, createBody := doRequest(t, app, createReq)
+
+			requireStatus(t, createResp, createBody, http.StatusCreated)
+
+			var recreated model.ExtendedSubordinateInfo
+			if err := json.Unmarshal(createBody, &recreated); err != nil {
+				t.Fatalf("Failed to parse response: %v", err)
+			}
+
+			if recreated.EntityID != entityID {
+				t.Errorf("Expected entity_id %s, got %s", entityID, recreated.EntityID)
+			}
+
+			// Verify old JWKS was permanently deleted
+			oldJWKSResult := backends.db.Unscoped().First(&model.JWKS{}, *originalJWKSID)
+			if oldJWKSResult.Error == nil || !errors.Is(oldJWKSResult.Error, gorm.ErrRecordNotFound) {
+				t.Errorf("Expected old JWKS to be permanently deleted")
+			}
+
+			// Verify subordinate can be retrieved successfully
+			fetched, err := backends.Subordinates.Get(entityID)
+			if err != nil {
+				t.Fatalf("Failed to fetch re-registered subordinate: %v", err)
+			}
+			if fetched == nil {
+				t.Fatal("Re-registered subordinate not found")
+			}
 		},
 	)
 }
