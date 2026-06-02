@@ -198,6 +198,17 @@ a proxy.
         forwarded_ip_header: X-Real-IP
     ```
 
+## `admin_tls`
+<span class="badge badge-purple" title="Value Type">object / mapping</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable Prefix">`LH_API_ADMIN_TLS_`</span>
+
+!!! note "Admin API TLS Configuration"
+    
+    This field is automatically populated from `api.admin.tls` configuration and 
+    does not need to be set manually in the server configuration. See 
+    [Admin API TLS Configuration](api.md#tls) for details.
+
 ## `cors`
 <span class="badge badge-purple" title="Value Type">object / mapping</span>
 <span class="badge badge-green" title="If this option is required or optional">optional</span>

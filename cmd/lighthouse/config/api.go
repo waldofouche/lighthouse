@@ -32,6 +32,9 @@ type apiConf struct {
 //   - LH_API_ADMIN_ACTOR_HEADER: HTTP header name for actor extraction
 //   - LH_API_ADMIN_ACTOR_SOURCE: Preferred actor source ("basic_auth" or "header")
 //   - LH_API_ADMIN_CORS_*: CORS configuration (see CORSConf)
+//   - LH_API_ADMIN_TLS_ENABLED: Enable TLS for admin API
+//   - LH_API_ADMIN_TLS_CERT: Path to TLS certificate for admin API
+//   - LH_API_ADMIN_TLS_KEY: Path to TLS private key for admin API
 type adminAPIConf struct {
 	// Enabled enables the admin API.
 	// Env: LH_API_ADMIN_ENABLED
@@ -56,6 +59,10 @@ type adminAPIConf struct {
 	// CORS holds CORS configuration for the admin API.
 	// Env prefix: LH_API_ADMIN_CORS_
 	CORS lighthouse.CORSConf `yaml:"cors" envconfig:"CORS"`
+	// TLS holds TLS configuration for the admin API.
+	// When enabled with a custom port, the admin API will serve HTTPS instead of HTTP.
+	// Env prefix: LH_API_ADMIN_TLS_
+	TLS lighthouse.TLSConf `yaml:"tls" envconfig:"TLS"`
 }
 
 var defaultAPIConf = apiConf{
@@ -79,6 +86,12 @@ var defaultAPIConf = apiConf{
 			AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 			AllowCredentials: true,
 			MaxAge:           3600,
+		},
+		TLS: lighthouse.TLSConf{
+			Enabled:      false,
+			RedirectHTTP: false,
+			Cert:         "",
+			Key:          "",
 		},
 	},
 }
