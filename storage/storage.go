@@ -134,6 +134,11 @@ func (s *Storage) DBPublicKeyStorage(typeID string) *DBPublicKeyStorage {
 	return NewDBPublicKeyStorage(s.db, typeID)
 }
 
+// DB returns the underlying GORM database instance for direct queries
+func (s *Storage) DB() *gorm.DB {
+	return s.db
+}
+
 // TrustMarkedEntitiesStorage implements the TrustMarkedEntitiesStorageBackend interface
 type TrustMarkedEntitiesStorage struct {
 	db *gorm.DB
