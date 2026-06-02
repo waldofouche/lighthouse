@@ -36,6 +36,8 @@ type MiddlewareConfig struct {
 func Middleware(cfg MiddlewareConfig) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		path := c.Path()
+		// Force string copy to avoid sharing memory with Fiber's unsafe buffer
+		path = strings.Clone(path)
 
 		// Check if we should track this endpoint
 		endpointName := normalizeEndpoint(path)
@@ -63,7 +65,7 @@ func Middleware(cfg MiddlewareConfig) fiber.Handler {
 
 		// Capture client IP
 		if cfg.CaptureClientIP {
-			entry.ClientIP = c.IP()
+			entry.ClientIP = strings.Clone(c.IP())
 
 			// GeoIP lookup if available
 			if cfg.GeoIP != nil && entry.ClientIP != "" {
@@ -73,7 +75,7 @@ func Middleware(cfg MiddlewareConfig) fiber.Handler {
 
 		// Capture User-Agent
 		if cfg.CaptureUserAgent {
-			entry.UserAgent = string(c.Request().Header.UserAgent())
+			entry.UserAgent = strings.Clone(string(c.Request().Header.UserAgent()))
 			if entry.UserAgent != "" {
 				entry.UserAgentHash = hashString(entry.UserAgent)
 			}
