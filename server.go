@@ -29,6 +29,9 @@ type ServerConf struct {
 	Prefork bool `yaml:"prefork" envconfig:"PREFORK"`
 	// AdminAPIPort is set internally and not configurable via env.
 	AdminAPIPort int `yaml:"-" envconfig:"-"`
+	// AdminTLS holds TLS configuration for the admin API.
+	// Env prefix: LH_API_ADMIN_TLS_
+	AdminTLS TLSConf `yaml:"admin_tls" envconfig:"ADMIN_TLS"`
 	// TLS holds TLS configuration.
 	// Env prefix: LH_SERVER_TLS_
 	TLS tlsConf `yaml:"tls" envconfig:"TLS"`
@@ -91,5 +94,27 @@ type tlsConf struct {
 	Cert string `yaml:"cert" envconfig:"CERT"`
 	// Key is the path to the TLS private key.
 	// Env: LH_SERVER_TLS_KEY
+	Key string `yaml:"key" envconfig:"KEY"`
+}
+
+// TLSConf holds TLS configuration.
+//
+// Environment variables (with prefix based on parent, e.g., LH_SERVER_TLS_ or LH_API_ADMIN_TLS_):
+//   - *_TLS_ENABLED: Enable TLS
+//   - *_TLS_REDIRECT_HTTP: Redirect HTTP to HTTPS
+//   - *_TLS_CERT: Path to TLS certificate
+//   - *_TLS_KEY: Path to TLS private key
+type TLSConf struct {
+	// Enabled enables TLS.
+	// Env: *_TLS_ENABLED
+	Enabled bool `yaml:"enabled" envconfig:"ENABLED"`
+	// RedirectHTTP redirects HTTP to HTTPS.
+	// Env: *_TLS_REDIRECT_HTTP
+	RedirectHTTP bool `yaml:"redirect_http" envconfig:"REDIRECT_HTTP"`
+	// Cert is the path to the TLS certificate.
+	// Env: *_TLS_CERT
+	Cert string `yaml:"cert" envconfig:"CERT"`
+	// Key is the path to the TLS private key.
+	// Env: *_TLS_KEY
 	Key string `yaml:"key" envconfig:"KEY"`
 }

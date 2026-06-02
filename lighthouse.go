@@ -453,13 +453,26 @@ func (fed *LightHouse) Start() {
 	}
 
 	conf := fed.serverConf
+	adminTLS := fed.adminAPIServer != nil && fed.adminAPIServer != fed.server && fed.serverConf.AdminTLS.Enabled
+
 	// Admin API server should only run in parent process when prefork is enabled
 	// to avoid multiple processes binding to the same admin port
 	if fed.adminAPIServer != nil && fed.adminAPIServer != fed.server && !fiber.IsChild() {
-		log.WithField("port", conf.AdminAPIPort).Info("starting admin api server")
-		go func() {
-			log.WithError(fed.adminAPIServer.Listen(fmt.Sprintf("%s:%d", conf.IPListen, conf.AdminAPIPort))).Fatal()
-		}()
+		if adminTLS {
+			log.WithField("port", conf.AdminAPIPort).Info("starting admin api server with TLS")
+			go func() {
+				log.WithError(fed.adminAPIServer.ListenTLS(
+					fmt.Sprintf("%s:%d", conf.IPListen, conf.AdminAPIPort),
+					fed.serverConf.AdminTLS.Cert,
+					fed.serverConf.AdminTLS.Key,
+				)).Fatal()
+			}()
+		} else {
+			log.WithField("port", conf.AdminAPIPort).Info("starting admin api server")
+			go func() {
+				log.WithError(fed.adminAPIServer.Listen(fmt.Sprintf("%s:%d", conf.IPListen, conf.AdminAPIPort))).Fatal()
+			}()
+		}
 	}
 	if !conf.TLS.Enabled {
 		log.WithField("port", conf.Port).Info("TLS is disabled starting http server")
@@ -619,8 +632,10 @@ type AdminAPIOptions struct {
 	// ActorSource is the preferred source for actor extraction ("basic_auth" or "header").
 	// Default: "basic_auth" (tries basic auth username first, then falls back to header)
 	ActorSource string
-	// CORS holds CORS configuration for the admin API.
+	// CORS holds CORS middleware configuration for the admin API.
 	CORS CORSConf
+	// TLS holds TLS configuration for the admin API.
+	TLS TLSConf
 }
 
 // corsConfigFromConf converts a CORSConf to a Fiber CORS middleware configuration.

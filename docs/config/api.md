@@ -223,6 +223,50 @@ This is particularly useful for:
 - Building admin dashboards hosted on different domains
 - Testing the Admin API from development tools
 
+### `tls`
+<span class="badge badge-purple" title="Value Type">object / mapping</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable Prefix">`LH_API_ADMIN_TLS_`</span>
+
+Configuration for TLS (Transport Layer Security) on the Admin API when running on a separate port.
+When enabled, the Admin API will serve HTTPS instead of HTTP.
+
+??? file "config.yaml"
+
+    ```yaml
+    api:
+        admin:
+            enabled: true
+            port: 8443
+            tls:
+                enabled: true
+                cert: /path/to/admin.crt
+                key: /path/to/admin.key
+    ```
+
+#### `enabled`
+<span class="badge badge-purple" title="Value Type">boolean</span>
+<span class="badge badge-blue" title="Default Value">`false`</span>
+<span class="badge badge-green" title="If this option is required or optional">optional</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_API_ADMIN_TLS_ENABLED`</span>
+
+Enables or disables TLS for the Admin API. When enabled, the Admin API will 
+serve HTTPS on the configured port.
+
+#### `cert`
+<span class="badge badge-purple" title="Value Type">file path</span>
+<span class="badge badge-green" title="If this option is required or optional">required when enabled</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_API_ADMIN_TLS_CERT`</span>
+
+Path to the TLS certificate file for the Admin API.
+
+#### `key`
+<span class="badge badge-purple" title="Value Type">file path</span>
+<span class="badge badge-green" title="If this option is required or optional">required when enabled</span>
+<span class="badge badge-cyan" title="Environment Variable">`LH_API_ADMIN_TLS_KEY`</span>
+
+Path to the TLS private key file for the Admin API.
+
 ??? file "config.yaml"
 
     ```yaml
@@ -337,14 +381,14 @@ Default is 3600 (1 hour).
 
 ## Complete Example
 
-??? file "config.yaml"
+??? file "config.yaml (Admin API on separate port with TLS)"
 
     ```yaml
     api:
         admin:
             enabled: true
             users_enabled: true
-            port: 0
+            port: 8443
             actor_source: header
             actor_header: X-Actor
             password_hashing:
@@ -360,7 +404,28 @@ Default is 3600 (1 hour).
                 allow_headers: "Origin,Content-Type,Accept,Authorization"
                 allow_credentials: true
                 max_age: 3600
+            tls:
+                enabled: true
+                cert: /path/to/admin.crt
+                key: /path/to/admin.key
     ```
+
+??? file "config.yaml (Admin API on main server port)"
+
+    ```yaml
+    api:
+        admin:
+            enabled: true
+            users_enabled: true
+            port: 0
+            actor_source: header
+            actor_header: X-Actor
+            cors:
+                enabled: false
+    ```
+    
+    When `port: 0`, the Admin API runs on the main server port and uses the 
+    main server's TLS configuration from `server.tls`.
 
 ## Security Considerations
 

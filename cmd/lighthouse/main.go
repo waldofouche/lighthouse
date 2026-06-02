@@ -130,6 +130,8 @@ func logStorageWarnings(server lighthouse.ServerConf, storageConf *config.Storag
 func initLighthouse(c *config.Config, backs model.Backends, statsConfig stats.Config) (
 	*lighthouse.LightHouse, error,
 ) {
+	c.Server.AdminTLS = c.API.Admin.TLS
+
 	lh, err := lighthouse.NewLightHouse(
 		c.Server,
 		c.EntityID,
@@ -142,6 +144,7 @@ func initLighthouse(c *config.Config, backs model.Backends, statsConfig stats.Co
 			ActorHeader:  c.API.Admin.ActorHeader,
 			ActorSource:  c.API.Admin.ActorSource,
 			CORS:         c.API.Admin.CORS,
+			TLS:          c.API.Admin.TLS,
 		},
 		statsConfig,
 	)
