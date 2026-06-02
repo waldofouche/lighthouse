@@ -166,7 +166,7 @@ The `debug` option enables debug logging for database operations. This is useful
     ```yaml
     storage:
         driver: mysql
-        dsn: "lighthouse:secret@tcp(db.example.com:3306)/lighthouse?charset=utf8mb4&parseTime=True&loc=Local"
+        dsn: "lighthouse:secret@tcp(db.example.com:3306)/lighthouse?charset=utf8mb4&parseTime=True&loc=Local&tls=true"
     ```
 
 ## Legacy Backends (Deprecated)
