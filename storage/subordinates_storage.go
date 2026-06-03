@@ -33,11 +33,9 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 
 					// Handle JWKS: delete old one if exists, create new if provided
 					if existing.JWKSID != nil {
-						// First permanently delete the soft-deleted JWKS using Unscoped
 						if err := tx.Unscoped().Delete(&model.JWKS{}, *existing.JWKSID).Error; err != nil {
 							return errors.Wrap(err, "failed to delete old JWKS")
 						}
-						existing.JWKSID = nil // Clear the reference before creating new JWKS
 					}
 					if info.JWKS.ID != 0 || (info.JWKS.Keys.Set != nil && info.JWKS.Keys.Len() > 0) {
 						if err := tx.Create(&info.JWKS).Error; err != nil {
@@ -54,7 +52,9 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 					}
 
 					// Delete old entity types and insert new ones
-					if err := tx.Where("subordinate_id = ?", existing.ID).Delete(&model.SubordinateEntityType{}).Error; err != nil {
+					if err := tx.Where(
+						"subordinate_id = ?", existing.ID,
+					).Delete(&model.SubordinateEntityType{}).Error; err != nil {
 						return errors.Wrap(err, "failed to delete old entity types")
 					}
 
@@ -102,42 +102,60 @@ func (s *SubordinateStorage) Add(info model.ExtendedSubordinateInfo) error {
 
 // Delete removes a subordinate
 func (s *SubordinateStorage) Delete(entityID string) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		var info model.ExtendedSubordinateInfo
-		if err := tx.Where("entity_id = ?", entityID).First(&info).Error; err != nil {
-			return err
-		}
-
-		// Soft-delete associated JWKS if exists
-		if info.JWKSID != nil {
-			if err := tx.Delete(&model.JWKS{}, *info.JWKSID).Error; err != nil {
-				return errors.Wrap(err, "failed to soft-delete JWKS")
+	return s.db.Transaction(
+		func(tx *gorm.DB) error {
+			var info model.ExtendedSubordinateInfo
+			if err := tx.Where("entity_id = ?", entityID).First(&info).Error; err != nil {
+				return err
 			}
-		}
 
-		// Soft-delete subordinate
-		return tx.Delete(&model.ExtendedSubordinateInfo{}, info.ID).Error
-	})
+			// Permanently delete associated JWKS if exists (must happen before clearing jwks_id)
+			if info.JWKSID != nil {
+				// First clear the foreign key reference to avoid FK constraint issues
+				if err := tx.Model(&model.ExtendedSubordinateInfo{}).Where("id = ?", info.ID).Update(
+					"jwks_id", nil,
+				).Error; err != nil {
+					return errors.Wrap(err, "failed to clear jwks_id")
+				}
+				// Then permanently delete the JWKS
+				if err := tx.Unscoped().Delete(&model.JWKS{}, *info.JWKSID).Error; err != nil {
+					return errors.Wrap(err, "failed to permanently delete JWKS")
+				}
+			}
+
+			// Soft-delete subordinate
+			return tx.Delete(&model.ExtendedSubordinateInfo{}, info.ID).Error
+		},
+	)
 }
 
 // DeleteByDBID removes a subordinate by primary key ID
 func (s *SubordinateStorage) DeleteByDBID(id string) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		var info model.ExtendedSubordinateInfo
-		if err := tx.First(&info, id).Error; err != nil {
-			return err
-		}
-
-		// Soft-delete associated JWKS if exists
-		if info.JWKSID != nil {
-			if err := tx.Delete(&model.JWKS{}, *info.JWKSID).Error; err != nil {
-				return errors.Wrap(err, "failed to soft-delete JWKS")
+	return s.db.Transaction(
+		func(tx *gorm.DB) error {
+			var info model.ExtendedSubordinateInfo
+			if err := tx.First(&info, id).Error; err != nil {
+				return err
 			}
-		}
 
-		// Soft-delete subordinate
-		return tx.Delete(&model.ExtendedSubordinateInfo{}, id).Error
-	})
+			// Permanently delete associated JWKS if exists (must happen before clearing jwks_id)
+			if info.JWKSID != nil {
+				// First clear the foreign key reference to avoid FK constraint issues
+				if err := tx.Model(&model.ExtendedSubordinateInfo{}).Where("id = ?", info.ID).Update(
+					"jwks_id", nil,
+				).Error; err != nil {
+					return errors.Wrap(err, "failed to clear jwks_id")
+				}
+				// Then permanently delete the JWKS
+				if err := tx.Unscoped().Delete(&model.JWKS{}, *info.JWKSID).Error; err != nil {
+					return errors.Wrap(err, "failed to permanently delete JWKS")
+				}
+			}
+
+			// Soft-delete subordinate
+			return tx.Delete(&model.ExtendedSubordinateInfo{}, id).Error
+		},
+	)
 }
 
 // UpdateStatus updates the status of a subordinate by entityID
@@ -178,7 +196,9 @@ func (s *SubordinateStorage) Get(entityID string) (*model.ExtendedSubordinateInf
 // GetByDBID retrieves a subordinate by DB primary key
 func (s *SubordinateStorage) GetByDBID(id string) (*model.ExtendedSubordinateInfo, error) {
 	var dbInfo model.ExtendedSubordinateInfo
-	result := s.db.Preload("SubordinateEntityTypes").Preload("SubordinateAdditionalClaims").Preload("JWKS").First(&dbInfo, id)
+	result := s.db.Preload("SubordinateEntityTypes").Preload("SubordinateAdditionalClaims").Preload("JWKS").First(
+		&dbInfo, id,
+	)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -257,13 +277,22 @@ func (s *SubordinateStorage) Update(entityID string, info model.ExtendedSubordin
 			info.SubordinateEntityTypes = nil // Prevent GORM from auto-creating associations
 
 			// Upsert the subordinate info (without associations)
-			if err := tx.Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "entity_id"}},
-				DoUpdates: clause.AssignmentColumns([]string{
-					"updated_at", "description", "status", "jwks_id",
-					"metadata", "metadata_policy", "constraints",
-				}),
-			}).Create(&info).Error; err != nil {
+			if err := tx.Clauses(
+				clause.OnConflict{
+					Columns: []clause.Column{{Name: "entity_id"}},
+					DoUpdates: clause.AssignmentColumns(
+						[]string{
+							"updated_at",
+							"description",
+							"status",
+							"jwks_id",
+							"metadata",
+							"metadata_policy",
+							"constraints",
+						},
+					),
+				},
+			).Create(&info).Error; err != nil {
 				return err
 			}
 
@@ -273,10 +302,15 @@ func (s *SubordinateStorage) Update(entityID string, info model.ExtendedSubordin
 					entityTypes[i].SubordinateID = info.ID
 				}
 				// Use column-based conflict detection with DO NOTHING
-				if err := tx.Clauses(clause.OnConflict{
-					Columns:   []clause.Column{{Name: "subordinate_id"}, {Name: "entity_type"}},
-					DoNothing: true,
-				}).Create(&entityTypes).Error; err != nil {
+				if err := tx.Clauses(
+					clause.OnConflict{
+						Columns: []clause.Column{
+							{Name: "subordinate_id"},
+							{Name: "entity_type"},
+						},
+						DoNothing: true,
+					},
+				).Create(&entityTypes).Error; err != nil {
 					return errors.Wrap(err, "failed to insert subordinate entity types")
 				}
 			}
@@ -499,30 +533,34 @@ func (s *SubordinateStorage) SetAdditionalClaims(
 	}
 
 	var result []model.SubordinateAdditionalClaim
-	err = s.db.Transaction(func(tx *gorm.DB) error {
-		// Delete existing claims
-		if err := tx.Where("subordinate_id = ?", subID).Delete(&model.SubordinateAdditionalClaim{}).Error; err != nil {
-			return errors.Wrap(err, "failed to delete existing claims")
-		}
-		// Insert new claims
-		if len(claims) == 0 {
-			return nil
-		}
-		rows := make([]model.SubordinateAdditionalClaim, len(claims))
-		for i, c := range claims {
-			rows[i] = model.SubordinateAdditionalClaim{
-				SubordinateID: subID,
-				Claim:         c.Claim,
-				Value:         c.Value,
-				Crit:          c.Crit,
+	err = s.db.Transaction(
+		func(tx *gorm.DB) error {
+			// Delete existing claims
+			if err := tx.Where(
+				"subordinate_id = ?", subID,
+			).Delete(&model.SubordinateAdditionalClaim{}).Error; err != nil {
+				return errors.Wrap(err, "failed to delete existing claims")
 			}
-		}
-		if err := tx.Create(&rows).Error; err != nil {
-			return errors.Wrap(err, "failed to insert claims")
-		}
-		result = rows
-		return nil
-	})
+			// Insert new claims
+			if len(claims) == 0 {
+				return nil
+			}
+			rows := make([]model.SubordinateAdditionalClaim, len(claims))
+			for i, c := range claims {
+				rows[i] = model.SubordinateAdditionalClaim{
+					SubordinateID: subID,
+					Claim:         c.Claim,
+					Value:         c.Value,
+					Crit:          c.Crit,
+				}
+			}
+			if err := tx.Create(&rows).Error; err != nil {
+				return errors.Wrap(err, "failed to insert claims")
+			}
+			result = rows
+			return nil
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -585,29 +623,33 @@ func (s *SubordinateStorage) UpdateAdditionalClaim(
 		return nil, err
 	}
 	var row model.SubordinateAdditionalClaim
-	err = s.db.Transaction(func(tx *gorm.DB) error {
-		result := tx.Where("subordinate_id = ? AND id = ?", subID, claimID).First(&row)
-		if result.Error != nil {
-			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-				return model.NotFoundError("additional claim not found")
+	err = s.db.Transaction(
+		func(tx *gorm.DB) error {
+			result := tx.Where("subordinate_id = ? AND id = ?", subID, claimID).First(&row)
+			if result.Error != nil {
+				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+					return model.NotFoundError("additional claim not found")
+				}
+				return errors.Wrap(result.Error, "failed to find additional claim")
 			}
-			return errors.Wrap(result.Error, "failed to find additional claim")
-		}
-		// Check if claim name is changing and would conflict
-		if claim.Claim != "" && claim.Claim != row.Claim {
-			var existing model.SubordinateAdditionalClaim
-			if err := tx.Where("subordinate_id = ? AND claim = ? AND id != ?", subID, claim.Claim, row.ID).First(&existing).Error; err == nil {
-				return model.AlreadyExistsErrorFmt("claim %q already exists for this subordinate", claim.Claim)
+			// Check if claim name is changing and would conflict
+			if claim.Claim != "" && claim.Claim != row.Claim {
+				var existing model.SubordinateAdditionalClaim
+				if err := tx.Where(
+					"subordinate_id = ? AND claim = ? AND id != ?", subID, claim.Claim, row.ID,
+				).First(&existing).Error; err == nil {
+					return model.AlreadyExistsErrorFmt("claim %q already exists for this subordinate", claim.Claim)
+				}
+				row.Claim = claim.Claim
 			}
-			row.Claim = claim.Claim
-		}
-		row.Value = claim.Value
-		row.Crit = claim.Crit
-		if err := tx.Save(&row).Error; err != nil {
-			return errors.Wrap(err, "failed to update additional claim")
-		}
-		return nil
-	})
+			row.Value = claim.Value
+			row.Crit = claim.Crit
+			if err := tx.Save(&row).Error; err != nil {
+				return errors.Wrap(err, "failed to update additional claim")
+			}
+			return nil
+		},
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -648,15 +648,11 @@ func TestDeleteSubordinateByID(t *testing.T) {
 				t.Errorf("Expected subordinate events to be deleted, but found %d events", len(events))
 			}
 
-			// Verify JWKS was soft-deleted
+			// Verify JWKS was permanently deleted (to allow re-registration without FK constraints)
 			if originalJWKSID != nil {
-				var jwks model.JWKS
-				result := backends.db.Unscoped().First(&jwks, *originalJWKSID)
-				if result.Error != nil {
-					t.Fatalf("Failed to get JWKS: %v", result.Error)
-				}
-				if !jwks.DeletedAt.Valid {
-					t.Errorf("Expected JWKS to be soft-deleted, but DeletedAt is not set")
+				oldJWKSResult := backends.db.Unscoped().First(&model.JWKS{}, *originalJWKSID)
+				if oldJWKSResult.Error == nil || !errors.Is(oldJWKSResult.Error, gorm.ErrRecordNotFound) {
+					t.Errorf("Expected old JWKS to be permanently deleted")
 				}
 			}
 		},
@@ -722,14 +718,10 @@ func TestIssue85_ReRegisterAfterDelete(t *testing.T) {
 				t.Errorf("Expected subordinate to be soft-deleted")
 			}
 
-			// Verify JWKS is soft-deleted
-			var jwks model.JWKS
-			result := backends.db.Unscoped().First(&jwks, *originalJWKSID)
-			if result.Error != nil {
-				t.Fatalf("Failed to get JWKS: %v", result.Error)
-			}
-			if !jwks.DeletedAt.Valid {
-				t.Errorf("Expected JWKS to be soft-deleted")
+			// Verify JWKS was permanently deleted (to avoid FK constraint issues on re-registration)
+			oldJWKSResult := backends.db.Unscoped().First(&model.JWKS{}, *originalJWKSID)
+			if oldJWKSResult.Error == nil || !errors.Is(oldJWKSResult.Error, gorm.ErrRecordNotFound) {
+				t.Errorf("Expected old JWKS to be permanently deleted")
 			}
 
 			// Step 3: Re-register the same entity (this should succeed without FK errors)
@@ -752,12 +744,6 @@ func TestIssue85_ReRegisterAfterDelete(t *testing.T) {
 
 			if recreated.EntityID != entityID {
 				t.Errorf("Expected entity_id %s, got %s", entityID, recreated.EntityID)
-			}
-
-			// Verify old JWKS was permanently deleted
-			oldJWKSResult := backends.db.Unscoped().First(&model.JWKS{}, *originalJWKSID)
-			if oldJWKSResult.Error == nil || !errors.Is(oldJWKSResult.Error, gorm.ErrRecordNotFound) {
-				t.Errorf("Expected old JWKS to be permanently deleted")
 			}
 
 			// Verify subordinate can be retrieved successfully
