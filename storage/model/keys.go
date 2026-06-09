@@ -40,3 +40,11 @@ func NewJWKS(jwks jwx.JWKS) JWKS {
 		Keys: jwks,
 	}
 }
+
+// PrivateKeyEntry represents a private key stored in the database.
+type PrivateKeyEntry struct {
+	KID       string `gorm:"primaryKey;size:255;column:kid"`
+	PEMData   []byte `gorm:"column:pem_data;type:bytea;not null"`
+	CreatedAt int64  `gorm:"autoCreateTime"`
+	UpdatedAt int64  `gorm:"autoUpdateTime"`
+}

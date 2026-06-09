@@ -12,7 +12,7 @@ import (
 // or use the Admin API to manage them at runtime.
 //
 // Environment variables (with prefix LH_SIGNING_):
-//   - LH_SIGNING_KMS: Key management system ("filesystem" or "pkcs11")
+//   - LH_SIGNING_KMS: Key management system ("filesystem", "pkcs11", or "db")
 //   - LH_SIGNING_PK_BACKEND: Public key storage backend ("filesystem" or "db")
 //   - LH_SIGNING_AUTO_GENERATE_KEYS: Auto-generate keys if missing
 //   - LH_SIGNING_FILESYSTEM_KEY_FILE: Path to single key file
@@ -34,13 +34,15 @@ type SigningConf struct {
 
 var defaultSigningConf = SigningConf{
 	SigningConf: lighthouse.SigningConf{
-		KMS:              lighthouse.KMSFilesystem,
 		PKBackend:        lighthouse.PKBackendDatabase,
 		AutoGenerateKeys: true,
 	},
 }
 
 func (c *SigningConf) validate() error {
+	if c.KMS == "" {
+		return errors.New("error in signing conf: kms must be specified ('filesystem', 'pkcs11', or 'db')")
+	}
 	switch c.KMS {
 	case lighthouse.KMSFilesystem:
 		if c.FileSystemBackend.KeyDir == "" && c.FileSystemBackend.KeyFile == "" {
@@ -56,8 +58,12 @@ func (c *SigningConf) validate() error {
 		if c.PKCS11Backend.Pin == "" && !c.PKCS11Backend.LoginNotSupported {
 			return errors.New("error in signing conf: pkcs11.pin must be specified")
 		}
+	case lighthouse.KMSDatabase:
+		if c.PKBackend != lighthouse.PKBackendDatabase {
+			return errors.New("error in signing conf: kms=db requires pk_backend=db")
+		}
 	default:
-		return errors.Errorf("error in signing conf: unknown KMS %s", c.KMS)
+		return errors.Errorf("error in signing conf: unknown kms '%s'", c.KMS)
 	}
 	if c.PKBackend == lighthouse.PKBackendFilesystem && c.FileSystemBackend.KeyDir == "" {
 		return errors.New("error in signing conf: filesystem.key_dir must be specified")
