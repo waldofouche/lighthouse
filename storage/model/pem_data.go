@@ -3,8 +3,6 @@ package model
 import (
 	"database/sql/driver"
 	"fmt"
-	"strings"
-
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -19,11 +17,7 @@ func (PEMData) GormDataType() string {
 
 // GormDBDataType maps PEMData to a database-specific column type.
 func (PEMData) GormDBDataType(db *gorm.DB, _ *schema.Field) string {
-	return pemDataColumnType(db.Dialector.Name())
-}
-
-func pemDataColumnType(dialect string) string {
-	switch strings.ToLower(dialect) {
+	switch db.Dialector.Name() {
 	case "mysql":
 		return "longblob"
 	case "postgres":
@@ -59,4 +53,3 @@ func (p *PEMData) Scan(value any) error {
 		return fmt.Errorf("unsupported PEMData scan type %T", value)
 	}
 }
-
