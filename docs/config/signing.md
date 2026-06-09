@@ -19,14 +19,30 @@ Supported values:
 
 - `filesystem` - Keys stored on the filesystem
 - `pkcs11` - Keys stored in a Hardware Security Module (HSM) via PKCS#11
+- `db` - Keys stored in the database
 
-??? file "config.yaml"
+??? file "Filesystem KMS (default)"
 
     ```yaml
     signing:
         kms: filesystem
         filesystem:
             key_dir: /path/to/keys
+    ```
+
+??? file "Database-backed KMS"
+
+    ```yaml
+    signing:
+        kms: db
+        pk_backend: db
+        auto_generate_keys: true
+    ```
+
+!!! info "Migration from Filesystem KMS"
+    To migrate existing filesystem-based private keys to the database, use:
+    ```bash
+    lhmigrate pem-to-db --source /path/to/kms/dir --type federation --db-dsn /path/to/db.sqlite
     ```
 
 ## `pk_backend`

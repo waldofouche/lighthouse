@@ -198,6 +198,7 @@ func (s *Storage) Backends() model.Backends {
 // wrapping multiple operations in a single database transaction.
 func (s *Storage) backendsWithDB(db *gorm.DB, withTransaction bool) model.Backends {
 	backends := model.Backends{
+		DB:                  db,
 		Subordinates:        &SubordinateStorage{db: db},
 		SubordinateEvents:   NewSubordinateEventsStorage(db),
 		TrustMarks:          &TrustMarkedEntitiesStorage{db: db},

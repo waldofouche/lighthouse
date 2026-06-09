@@ -3,6 +3,7 @@ package lighthouse
 import (
 	"github.com/go-oidfed/lib/jwx/keymanagement/kms"
 	"github.com/go-oidfed/lib/jwx/keymanagement/public"
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/pkg/errors"
 
 	"github.com/go-oidfed/lighthouse/api/adminapi"
@@ -13,7 +14,7 @@ import (
 // SigningConf holds signing configuration.
 //
 // Environment variables (with prefix LH_SIGNING_):
-//   - LH_SIGNING_KMS: Key management system ("filesystem" or "pkcs11")
+//   - LH_SIGNING_KMS: Key management system ("filesystem", "pkcs11", or "db")
 //   - LH_SIGNING_PK_BACKEND: Public key storage backend ("filesystem" or "db")
 //   - LH_SIGNING_AUTO_GENERATE_KEYS: Auto-generate keys if missing (bool)
 //   - LH_SIGNING_FILESYSTEM_KEY_FILE: Path to single key file
@@ -99,6 +100,7 @@ type SigningConf struct {
 const (
 	KMSFilesystem = "filesystem"
 	KMSPKCS11     = "pkcs11"
+	KMSDatabase   = "db"
 )
 
 const (
@@ -191,8 +193,22 @@ func initKey(c SigningConf, storages model.Backends) (
 				ExtraLabels:       c.PKCS11Backend.ExtraLabels,
 			}, keyManagement.KMSManagedPKs,
 		)
+	case KMSDatabase:
+		pemStorer := storage.NewDBPEMStorer(storages.DB, "federation")
+		stateStorer := storage.NewDBStateStorer(storages.KV, "federation")
+		keyManagement.Keys = kms.NewPEMStorageKMS(
+			kms.KMSConfig{
+				GenerateKeys: c.AutoGenerateKeys,
+				Algs:         []jwa.SignatureAlgorithm{alg},
+				RSAKeyLen:    rsaKeyLen,
+				KeyRotation:  rotationConf,
+			},
+			pemStorer,
+			stateStorer,
+			keyManagement.KMSManagedPKs,
+		)
 	default:
-		err = errors.Errorf("unsupported kms '%s'", c.PKBackend)
+		err = errors.Errorf("unsupported kms '%s'", c.KMS)
 		return
 	}
 	if keyManagement.Keys != nil {

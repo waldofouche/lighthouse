@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/go-oidfed/lib/jwx/keymanagement/public"
+	"gorm.io/gorm"
 )
 
 // TransactionFunc is a function that executes within a database transaction.
@@ -13,6 +14,7 @@ type TransactionFunc func(txBackends *Backends) error
 // It provides a single struct that can be passed around instead of
 // multiple return values for each storage backend.
 type Backends struct {
+	DB                  *gorm.DB
 	Subordinates        SubordinateStorageBackend
 	SubordinateEvents   SubordinateEventStore
 	TrustMarks          TrustMarkedEntitiesStorageBackend

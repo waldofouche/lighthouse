@@ -24,6 +24,7 @@ func usage() {
 		os.Stderr, "  all       Run all migration steps in sequence (config, keys, config2db, db, cleanup)\n",
 	)
 	_, _ = fmt.Fprintf(os.Stderr, "  keys      Migrate signing keys (subcommands: public, kms) [alias: signing]\n")
+	_, _ = fmt.Fprintf(os.Stderr, "  pem-to-db Migrate filesystem KMS private keys to database\n")
 	_, _ = fmt.Fprintf(os.Stderr, "  config2db Migrate config file values to database\n")
 	_, _ = fmt.Fprintf(os.Stderr, "  db        Migrate legacy storage data (JSON/Badger) to GORM-based database\n")
 	_, _ = fmt.Fprintf(os.Stderr, "  config    Migrate or update configuration to new format\n")
@@ -426,6 +427,8 @@ func main() {
 		code = allCmd(os.Args[2:])
 	case "keys", "signing":
 		code = keysCmd(os.Args[2:])
+	case "pem-to-db":
+		code = runPEMMigration(os.Args[2:])
 	case "config2db":
 		code = config2dbCmd(os.Args[2:])
 	case "db":
