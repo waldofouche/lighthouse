@@ -17,6 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/go-oidfed/lib/jwx/keymanagement/kms"
+
 	"github.com/go-oidfed/lighthouse/storage"
 	"github.com/go-oidfed/lighthouse/storage/model"
 )
@@ -42,7 +43,10 @@ func pemToDBCmd(args []string) int {
 	fs.BoolVar(&verbose, "v", false, "Verbose logging (shorthand)")
 
 	fs.Usage = func() {
-		_, _ = fmt.Fprintf(os.Stderr, "Usage: lhmigrate pem-to-db --source <kms_dir> --type <typeID> --db-dsn <dsn> [--db-type=<type>]\n")
+		_, _ = fmt.Fprintf(
+			os.Stderr,
+			"Usage: lhmigrate pem-to-db --source <kms_dir> --type <typeID> --db-dsn <dsn> [--db-type=<type>]\n",
+		)
 		fs.PrintDefaults()
 	}
 
@@ -82,16 +86,9 @@ func pemToDBCmd(args []string) int {
 		return 1
 	}
 
-	var dsn string
-	if driver == storage.DriverSQLite {
-		dsn = destDSN
-	} else {
-		dsn = destDSN
-	}
-
 	cfg := storage.Config{
 		Driver: driver,
-		DSN:    dsn,
+		DSN:    destDSN,
 		Debug:  verbose,
 	}
 	db, err := storage.Connect(cfg)
@@ -187,7 +184,12 @@ func (k *keyValueStorageForMigration) Get(scope, key string) (datatypes.JSON, er
 	var raw []byte
 	row := k.db.Model(&model.KeyValue{}).
 		Select("value").
-		Where(&model.KeyValue{Scope: scope, Key: key}).
+		Where(
+			&model.KeyValue{
+				Scope: scope,
+				Key:   key,
+			},
+		).
 		Row()
 	if err := row.Scan(&raw); err != nil {
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, gorm.ErrRecordNotFound) {
@@ -211,11 +213,25 @@ func (k *keyValueStorageForMigration) GetAs(scope, key string, out any) (bool, e
 }
 
 func (k *keyValueStorageForMigration) Set(scope, key string, value datatypes.JSON) error {
-	kv := model.KeyValue{Scope: scope, Key: key, Value: value}
-	return k.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "scope"}, {Name: "key"}},
-		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
-	}).Create(&kv).Error
+	kv := model.KeyValue{
+		Scope: scope,
+		Key:   key,
+		Value: value,
+	}
+	return k.db.Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "scope"},
+				{Name: "key"},
+			},
+			DoUpdates: clause.AssignmentColumns(
+				[]string{
+					"value",
+					"updated_at",
+				},
+			),
+		},
+	).Create(&kv).Error
 }
 
 func (k *keyValueStorageForMigration) SetAny(scope, key string, v any) error {
@@ -227,7 +243,12 @@ func (k *keyValueStorageForMigration) SetAny(scope, key string, v any) error {
 }
 
 func (k *keyValueStorageForMigration) Delete(scope, key string) error {
-	return k.db.Where(&model.KeyValue{Scope: scope, Key: key}).Delete(&model.KeyValue{}).Error
+	return k.db.Where(
+		&model.KeyValue{
+			Scope: scope,
+			Key:   key,
+		},
+	).Delete(&model.KeyValue{}).Error
 }
 
 // runPEMMigration is the entry point for PEM-to-DB migration from main.go
