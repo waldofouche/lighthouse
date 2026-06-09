@@ -2,8 +2,22 @@ package model
 
 import (
 	"bytes"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"gorm.io/gorm/schema"
 	"testing"
 )
+
+type fakeDialector string
+
+func (d fakeDialector) Name() string                                   { return string(d) }
+func (d fakeDialector) Initialize(*gorm.DB) error                      { return nil }
+func (d fakeDialector) Migrator(*gorm.DB) gorm.Migrator                { return nil }
+func (d fakeDialector) DataTypeOf(*schema.Field) string                { return "" }
+func (d fakeDialector) DefaultValueOf(*schema.Field) clause.Expression { return nil }
+func (d fakeDialector) BindVarTo(clause.Writer, *gorm.Statement, any)  {}
+func (d fakeDialector) QuoteTo(clause.Writer, string)                  {}
+func (d fakeDialector) Explain(string, ...any) string                  { return "" }
 
 func TestPEMDataColumnType(t *testing.T) {
 	tests := []struct {
@@ -17,8 +31,12 @@ func TestPEMDataColumnType(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := pemDataColumnType(tt.dialect); got != tt.want {
-			t.Fatalf("pemDataColumnType(%q) = %q, want %q", tt.dialect, got, tt.want)
+		db, err := gorm.Open(fakeDialector(tt.dialect), &gorm.Config{})
+		if err != nil {
+			t.Fatalf("gorm.Open(%q) returned error: %v", tt.dialect, err)
+		}
+		if got := (PEMData{}).GormDBDataType(db, nil); got != tt.want {
+			t.Fatalf("GormDBDataType(%q) = %q, want %q", tt.dialect, got, tt.want)
 		}
 	}
 }
@@ -55,4 +73,3 @@ func TestPEMDataScanAndValue(t *testing.T) {
 		t.Fatalf("Scan(nil) = %#v, want nil", []byte(p))
 	}
 }
-
