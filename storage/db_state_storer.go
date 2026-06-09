@@ -32,7 +32,7 @@ func (d *DBStateStorer) LoadScheduledState() (kms.ScheduledState, error) {
 	if err != nil {
 		return kms.ScheduledState{}, errors.WithStack(err)
 	}
-	if val == nil || len(val) == 0 {
+	if len(val) == 0 {
 		return kms.ScheduledState{}, nil
 	}
 	var st kms.ScheduledState
