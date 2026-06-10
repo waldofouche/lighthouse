@@ -11,13 +11,13 @@ import (
 type fakeDialector string
 
 func (d fakeDialector) Name() string                                   { return string(d) }
-func (d fakeDialector) Initialize(*gorm.DB) error                      { _ = d; return nil }
-func (d fakeDialector) Migrator(*gorm.DB) gorm.Migrator                { _ = d; return nil }
-func (d fakeDialector) DataTypeOf(*schema.Field) string                { _ = d; return "" }
-func (d fakeDialector) DefaultValueOf(*schema.Field) clause.Expression { _ = d; return nil }
-func (d fakeDialector) BindVarTo(clause.Writer, *gorm.Statement, any)  { _ = d }
-func (d fakeDialector) QuoteTo(clause.Writer, string)                  { _ = d }
-func (d fakeDialector) Explain(string, ...any) string                  { _ = d; return "" }
+func (fakeDialector) Initialize(*gorm.DB) error                      { return nil }
+func (fakeDialector) Migrator(*gorm.DB) gorm.Migrator                { return nil }
+func (fakeDialector) DataTypeOf(*schema.Field) string                { return "" }
+func (fakeDialector) DefaultValueOf(*schema.Field) clause.Expression { return nil }
+func (fakeDialector) BindVarTo(clause.Writer, *gorm.Statement, any)  {}
+func (fakeDialector) QuoteTo(clause.Writer, string)                  {}
+func (fakeDialector) Explain(string, ...any) string                  { return "" }
 
 func TestPEMDataColumnType(t *testing.T) {
 	tests := []struct {
