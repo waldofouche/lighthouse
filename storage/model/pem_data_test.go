@@ -11,13 +11,13 @@ import (
 type fakeDialector string
 
 func (d fakeDialector) Name() string                                   { return string(d) }
-func (d fakeDialector) Initialize(*gorm.DB) error                      { return nil }
-func (d fakeDialector) Migrator(*gorm.DB) gorm.Migrator                { return nil }
-func (d fakeDialector) DataTypeOf(*schema.Field) string                { return "" }
-func (d fakeDialector) DefaultValueOf(*schema.Field) clause.Expression { return nil }
-func (d fakeDialector) BindVarTo(clause.Writer, *gorm.Statement, any)  {}
-func (d fakeDialector) QuoteTo(clause.Writer, string)                  {}
-func (d fakeDialector) Explain(string, ...any) string                  { return "" }
+func (d fakeDialector) Initialize(*gorm.DB) error                      { _ = d; return nil }
+func (d fakeDialector) Migrator(*gorm.DB) gorm.Migrator                { _ = d; return nil }
+func (d fakeDialector) DataTypeOf(*schema.Field) string                { _ = d; return "" }
+func (d fakeDialector) DefaultValueOf(*schema.Field) clause.Expression { _ = d; return nil }
+func (d fakeDialector) BindVarTo(clause.Writer, *gorm.Statement, any)  { _ = d }
+func (d fakeDialector) QuoteTo(clause.Writer, string)                  { _ = d }
+func (d fakeDialector) Explain(string, ...any) string                  { _ = d; return "" }
 
 func TestPEMDataColumnType(t *testing.T) {
 	tests := []struct {
@@ -31,7 +31,7 @@ func TestPEMDataColumnType(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		db, err := gorm.Open(fakeDialector(tt.dialect), &gorm.Config{})
+		db, err := gorm.Open(fakeDialector(tt.dialect), &gorm.Config{SkipDefaultTransaction: true})
 		if err != nil {
 			t.Fatalf("gorm.Open(%q) returned error: %v", tt.dialect, err)
 		}
